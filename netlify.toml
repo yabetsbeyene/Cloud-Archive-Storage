@@ -1,0 +1,13 @@
+[build]
+  base = "frontend"
+  command = "npm run build"
+  publish = "dist"
+
+# Without this, refreshing or directly visiting any route other than "/"
+# (e.g. /documents, /categories) returns Netlify's own 404 page, because
+# those paths don't correspond to real files — React Router handles them
+# client-side, so every path must fall back to index.html.
+[[redirects]]
+  from = "/*"
+  to = "/index.html"
+  status = 200
