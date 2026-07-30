@@ -25,8 +25,18 @@ public class FileStorageService {
 
     public StoredFile store(MultipartFile file) {
         try {
-            String storedFileName = UUID.randomUUID() + "_" + file.getOriginalFilename();
-            Path targetPath = storageLocation.resolve(storedFileName);
+            String originalName = file.getOriginalFilename();
+            String portableName = originalName == null ? "file" : originalName.replace('\\', '/');
+            String safeName = Paths.get(portableName).getFileName().toString();
+            if (safeName.isBlank()) {
+                safeName = "file";
+            }
+
+            String storedFileName = UUID.randomUUID() + "_" + safeName;
+            Path targetPath = storageLocation.resolve(storedFileName).normalize();
+            if (!targetPath.startsWith(storageLocation)) {
+                throw new IllegalArgumentException("Invalid file name");
+            }
             Files.copy(file.getInputStream(), targetPath, StandardCopyOption.REPLACE_EXISTING);
 
             String checksum = computeSha256(targetPath);

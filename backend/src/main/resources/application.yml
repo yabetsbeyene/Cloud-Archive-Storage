@@ -22,18 +22,20 @@ spring:
     locations: classpath:db/migration
     baseline-on-migrate: true
 
+  servlet:
+    multipart:
+      max-file-size: 50MB
+      max-request-size: 50MB
+
   security:
     oauth2:
       resourceserver:
         jwt:
           issuer-uri: ${KEYCLOAK_ISSUER_URI:http://localhost:8081/realms/digital-archive}
+          jwk-set-uri: ${KEYCLOAK_JWK_SET_URI:http://localhost:8081/realms/digital-archive/protocol/openid-connect/certs}
 
 server:
   port: ${PORT:${SERVER_PORT:8080}}
-  servlet:
-    multipart:
-      max-file-size: 50MB
-      max-request-size: 50MB
 
 app:
   file-storage:

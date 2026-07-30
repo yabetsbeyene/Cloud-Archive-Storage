@@ -1,43 +1,35 @@
 # Digital Archive & Records Management System
 
-Full-stack archive system using Spring Boot, React, PostgreSQL, and Keycloak.
+Full-stack archive system built with React, Spring Boot, PostgreSQL, and
+Keycloak.
 
-## Structure
+## Project structure
 
 ```text
-backend/
-├── controller/    REST APIs
-├── service/       Documents, workflow, files, and auditing
-├── repository/    Database access
-├── domain/        JPA entities and enums
-├── dto/           API request models
-├── db/migration/  Flyway database migrations
-├── keycloak/      Realm configuration
-└── docker-compose.yml
-
-frontend/src/
-├── api/           Authenticated Axios client + resource API modules
-├── features/auth/ Authentication client, state, and types
-├── components/    Shared layout and UI components
-├── layouts/       Application layouts
-├── pages/         Route pages
-├── routes/        Protected routes
-└── types/         Domain types matching backend DTOs
-
-netlify.toml       Netlify build config (monorepo-aware) + SPA redirect rule
+frontend/              React + Vite user interface
+backend/               Spring Boot API
+backend/keycloak/      Production Keycloak image and realm import
+render.yaml            Render API, Keycloak, databases, and storage
+vercel.json            Vercel frontend build and SPA routing
 ```
 
 ## Run locally
 
-Backend:
+Start PostgreSQL and Keycloak:
 
 ```powershell
 cd backend
 docker compose up -d
+```
+
+Start the backend:
+
+```powershell
+cd backend
 mvn spring-boot:run
 ```
 
-Frontend:
+Start the frontend:
 
 ```powershell
 cd frontend
@@ -46,77 +38,99 @@ npm install
 npm run dev
 ```
 
+Local addresses:
+
 - Frontend: `http://localhost:5173`
 - Backend: `http://localhost:8080`
 - Keycloak: `http://localhost:8081`
 
-Development users: `admin.user / password123` and `dept.user / password123`.
+The production realm does not contain default application users or committed
+passwords. Create users and assign realm roles from the Keycloak admin console.
 
-## Deploying the frontend to Netlify
+## Deploy the backend stack to Render
 
-**The frontend cannot function in production until the backend and Keycloak
-are also deployed somewhere publicly reachable over HTTPS.** Deploying only
-the frontend gives you a working *page*, but login and all data calls will
-fail until the steps below are done.
+The root `render.yaml` Blueprint creates:
 
-### 1. Repo structure Netlify needs to understand
-This is a monorepo — the actual frontend app lives in `frontend/`, not the
-repo root. `netlify.toml` (already included, at the repo root) tells Netlify:
-- `base = "frontend"` — build from this subfolder
-- `command = "npm run build"`
-- `publish = "dist"`
-- a catch-all redirect so client-side routes (`/documents`, `/categories`,
-  etc.) don't 404 on refresh or direct visit — required for any React Router
-  app deployed as a static site
+- `digital-archive-keycloak`
+- `digital-archive-api`
+- `digital-archive-keycloak-db`
+- `digital-archive-app-db`
+- A persistent disk for uploaded documents
 
-If you're setting this up in Netlify's UI instead of relying on
-`netlify.toml`, set **Base directory** to `frontend`, **Build command** to
-`npm run build`, **Publish directory** to `frontend/dist`.
+The API uses a paid `starter` web service because Render persistent disks are
+not available to free web services. Change the plan or replace filesystem
+storage with object storage if needed.
 
-### 2. Environment variables — set these in Netlify's dashboard, not in a committed `.env`
-Site settings → Environment variables:
+1. Push this repository to GitHub or GitLab.
+2. In Render, create a new **Blueprint** from the repository.
+3. Render reads `render.yaml`.
+4. Enter these prompted values:
+
+```text
+KC_BOOTSTRAP_ADMIN_USERNAME=<strong temporary admin username>
+KC_BOOTSTRAP_ADMIN_PASSWORD=<strong temporary admin password>
+FRONTEND_URL=https://your-project.vercel.app
+CORS_ALLOWED_ORIGINS=https://your-project.vercel.app
 ```
-VITE_API_BASE_URL=https://your-deployed-backend.example.com/api
-VITE_KEYCLOAK_URL=https://your-deployed-keycloak.example.com
+
+`FRONTEND_URL` is used to generate the Keycloak redirect URI and web origin.
+`CORS_ALLOWED_ORIGINS` can contain multiple comma-separated origins.
+
+The API database URL, credentials, Keycloak issuer URL, health checks, port,
+and persistent storage location are wired automatically by the Blueprint.
+Flyway applies the database migrations when the API starts.
+
+## Deploy the frontend to Vercel
+
+1. Import the same repository into Vercel.
+2. Leave the project root at the repository root.
+3. Vercel reads `vercel.json` and builds the app from `frontend/`.
+4. Add these production environment variables:
+
+```text
+VITE_API_BASE_URL=https://digital-archive-api.onrender.com/api
+VITE_KEYCLOAK_URL=https://digital-archive-keycloak.onrender.com
 VITE_KEYCLOAK_REALM=digital-archive
 VITE_KEYCLOAK_CLIENT_ID=archive-frontend
 ```
-`.env` is gitignored on purpose — never commit real deployment URLs or
-secrets. `.env.example` documents the shape only.
 
-### 3. Backend CORS must allow your Netlify domain
-`SecurityConfig.java` reads allowed origins from `app.cors.allowed-origins`
-(env var `CORS_ALLOWED_ORIGINS`), comma-separated. On your backend host, set:
-```
-CORS_ALLOWED_ORIGINS=http://localhost:5173,https://your-app.netlify.app
-```
-Without this, the browser blocks every API call from the deployed frontend
-even though the backend itself is running fine — CORS is enforced client-side
-by the browser, so `curl`/Postman tests won't reveal this problem.
+Use the actual Render hostnames if Render changes either service name. Redeploy
+the Vercel project after adding or changing any `VITE_` variable because Vite
+embeds them during the build.
 
-### 4. Keycloak client config must allow your Netlify domain
-In the Keycloak admin console, on the `archive-frontend` client:
-- **Valid redirect URIs**: add `https://your-app.netlify.app/*`
-- **Web origins**: add `https://your-app.netlify.app`
+If the final Vercel URL differs from the value entered when creating the Render
+Blueprint, update `CORS_ALLOWED_ORIGINS` and redeploy the API. Also update the
+`archive-frontend` client's **Valid redirect URIs** and **Web origins** in the
+Keycloak admin console. Startup realm imports do not overwrite an existing
+realm.
 
-Without this, Keycloak will refuse to redirect back to your deployed site
-after login.
+## Deployment verification
 
-## Current status
+After all services are live:
+
+1. Open `https://<keycloak-host>/health/ready`.
+2. Open `https://<api-host>/actuator/health`.
+3. Open the Vercel URL and confirm it redirects to Keycloak.
+4. Create an application user in the `digital-archive` realm and assign an
+   appropriate role such as `ADMIN`.
+5. Sign in and verify API requests from the browser do not show CORS errors.
+6. Upload and download a file, then redeploy the API and confirm the file
+   remains available.
+
+## Current application scope
 
 Implemented:
 
-- Login, logout, token refresh, protected routes, responsive layout
-- Backend CRUD APIs for categories, departments, users, and documents
-- File versions (upload/download), workflow transitions, audit writing
-- PostgreSQL schema and Flyway migrations
-- Frontend: Categories and Departments pages fully wired to the backend
-  (TanStack Query, forms, validation, create/edit/delete)
+- Keycloak login, logout, token refresh, and protected routes
+- Category and department management interfaces
+- Backend APIs for users, categories, departments, versions, and workflow
+- Document service, file storage, auditing, Flyway migrations, and PostgreSQL
+- Render and Vercel deployment configuration
 
-Not yet implemented:
+Still product work rather than deployment work:
 
-- Documents, versions, and workflow pages (backend APIs exist, frontend UI
-  doesn't yet)
+- Document list, upload, detail, version, and workflow user interfaces
+- Dashboard statistics
+- User-management and audit-log user interfaces
 - Read APIs for audit logs and workflow history
-- Document notes and dashboard statistics APIs
-- Frontend tests
+- Automated frontend and backend tests

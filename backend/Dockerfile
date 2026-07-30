@@ -13,7 +13,8 @@ FROM eclipse-temurin:21-jre-alpine
 WORKDIR /app
 
 COPY --from=build /workspace/target/*.jar app.jar
+COPY --chmod=0755 render-entrypoint.sh /app/render-entrypoint.sh
 
 EXPOSE 8080
 
-ENTRYPOINT ["java", "-jar", "/app/app.jar"]
+ENTRYPOINT ["/app/render-entrypoint.sh"]

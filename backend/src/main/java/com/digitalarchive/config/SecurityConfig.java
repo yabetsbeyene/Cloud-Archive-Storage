@@ -29,7 +29,7 @@ import java.util.stream.Collectors;
 @EnableMethodSecurity(prePostEnabled = true)
 public class SecurityConfig {
 
-    // Comma-separated list, e.g. "http://localhost:5173,https://your-app.netlify.app"
+    // Comma-separated list, e.g. "http://localhost:5173,https://your-app.vercel.app"
     @Value("${app.cors.allowed-origins:http://localhost:5173}")
     private String allowedOriginsRaw;
 
