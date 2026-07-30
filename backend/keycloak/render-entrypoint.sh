@@ -1,6 +1,24 @@
 #!/bin/bash
 set -euo pipefail
 
+# Render exposes these values automatically. Explicit KC_* values still win.
+if [[ -z "${KC_HOSTNAME:-}" && -n "${RENDER_EXTERNAL_HOSTNAME:-}" ]]; then
+  export KC_HOSTNAME="${RENDER_EXTERNAL_HOSTNAME}"
+fi
+
+if [[ -z "${KC_HTTP_PORT:-}" && -n "${PORT:-}" ]]; then
+  export KC_HTTP_PORT="${PORT}"
+fi
+
+# Keep manually configured Keycloak 25 services compatible after upgrading.
+if [[ -z "${KC_BOOTSTRAP_ADMIN_USERNAME:-}" && -n "${KEYCLOAK_ADMIN:-}" ]]; then
+  export KC_BOOTSTRAP_ADMIN_USERNAME="${KEYCLOAK_ADMIN}"
+fi
+
+if [[ -z "${KC_BOOTSTRAP_ADMIN_PASSWORD:-}" && -n "${KEYCLOAK_ADMIN_PASSWORD:-}" ]]; then
+  export KC_BOOTSTRAP_ADMIN_PASSWORD="${KEYCLOAK_ADMIN_PASSWORD}"
+fi
+
 # Render supplies postgres://user:password@host:port/database, but Keycloak
 # expects jdbc:postgresql://host:port/database and separate credentials.
 if [[ -z "${KC_DB_URL:-}" ]]; then
