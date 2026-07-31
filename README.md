@@ -3,33 +3,106 @@
 Full-stack archive system built with React, Spring Boot, PostgreSQL, and
 Keycloak.
 
-## Project structure
+## Local deployment
+
+The complete application runs locally with Docker Compose:
+
+- React frontend served by Nginx
+- Spring Boot API
+- Keycloak
+- Application PostgreSQL database
+- Keycloak PostgreSQL database
+- Persistent Docker volumes for databases and uploaded documents
+
+### Requirements
+
+- Docker Desktop
+- At least 4 GB of memory available to Docker
+
+### Start everything
+
+From the repository root:
+
+```powershell
+docker compose up --build -d
+```
+
+The first build can take several minutes because Docker downloads the Java,
+Node, Nginx, Keycloak, and PostgreSQL images.
+
+Open the complete stack through one address:
+
+- Application: `http://localhost:5173`
+- API health: `http://localhost:5173/actuator/health`
+- Keycloak: `http://localhost:5173/auth`
+- Keycloak readiness: `http://localhost:5173/auth/health/ready`
+
+### Initial Keycloak administration
+
+Open `http://localhost:5173/auth/admin` and sign in with:
 
 ```text
-frontend/              React + Vite user interface
-backend/               Spring Boot API
-backend/keycloak/      Production Keycloak image and realm import
-render.yaml            Render API, Keycloak, databases, and storage
-vercel.json            Vercel frontend build and SPA routing
+Username: admin
+Password: admin
 ```
 
-## Run locally
+These credentials are for local development only.
 
-Start PostgreSQL and Keycloak:
+The `digital-archive` realm and `archive-frontend` client are imported
+automatically. Two local development users are included:
+
+```text
+admin.user / password123
+dept.user / password123
+```
+
+They have the `ADMIN` and `DEPT_USER` roles respectively. You can also create
+users in the `digital-archive` realm and assign one or more roles:
+
+- `ADMIN`
+- `ARCHIVIST`
+- `MANAGER`
+- `DEPT_USER`
+- `VIEWER`
+
+### Check status and logs
 
 ```powershell
-cd backend
-docker compose up -d
+docker compose ps
+docker compose logs -f keycloak
+docker compose logs -f backend
 ```
 
-Start the backend:
+### Stop the application
 
 ```powershell
-cd backend
-mvn spring-boot:run
+docker compose down
 ```
 
-Start the frontend:
+Data remains in Docker volumes after stopping.
+
+To completely reset all local databases, users, and uploaded files:
+
+```powershell
+docker compose down -v
+```
+
+The reset command permanently deletes the local Docker volumes.
+
+## Local ports
+
+| Component | Host port |
+|---|---:|
+| Frontend | 5173 |
+| Application PostgreSQL | 5533 |
+
+The API, Keycloak, and Keycloak PostgreSQL database are intentionally available
+only through the internal Docker network. Nginx exposes the UI, API, and
+authentication server together on port `5173`.
+
+## Development without containerizing the frontend
+
+You can still run the frontend development server:
 
 ```powershell
 cd frontend
@@ -38,99 +111,10 @@ npm install
 npm run dev
 ```
 
-Local addresses:
+Start only the supporting services with:
 
-- Frontend: `http://localhost:5173`
-- Backend: `http://localhost:8080`
-- Keycloak: `http://localhost:8081`
-
-The production realm does not contain default application users or committed
-passwords. Create users and assign realm roles from the Keycloak admin console.
-
-## Deploy the backend stack to Render
-
-The root `render.yaml` Blueprint creates:
-
-- `digital-archive-keycloak`
-- `digital-archive-api`
-- `digital-archive-keycloak-db`
-- `digital-archive-app-db`
-- A persistent disk for uploaded documents
-
-The API uses a paid `starter` web service because Render persistent disks are
-not available to free web services. Change the plan or replace filesystem
-storage with object storage if needed.
-
-1. Push this repository to GitHub or GitLab.
-2. In Render, create a new **Blueprint** from the repository.
-3. Render reads `render.yaml`.
-4. Enter these prompted values:
-
-```text
-KC_BOOTSTRAP_ADMIN_USERNAME=<strong temporary admin username>
-KC_BOOTSTRAP_ADMIN_PASSWORD=<strong temporary admin password>
-FRONTEND_URL=https://your-project.vercel.app
-CORS_ALLOWED_ORIGINS=https://your-project.vercel.app
+```powershell
+docker compose up -d postgres-app postgres-keycloak keycloak
 ```
 
-`FRONTEND_URL` is used to generate the Keycloak redirect URI and web origin.
-`CORS_ALLOWED_ORIGINS` can contain multiple comma-separated origins.
-
-The API database URL, credentials, Keycloak issuer URL, health checks, port,
-and persistent storage location are wired automatically by the Blueprint.
-Flyway applies the database migrations when the API starts.
-
-## Deploy the frontend to Vercel
-
-1. Import the same repository into Vercel.
-2. Leave the project root at the repository root.
-3. Vercel reads `vercel.json` and builds the app from `frontend/`.
-4. Add these production environment variables:
-
-```text
-VITE_API_BASE_URL=https://digital-archive-api.onrender.com/api
-VITE_KEYCLOAK_URL=https://digital-archive-keycloak.onrender.com
-VITE_KEYCLOAK_REALM=digital-archive
-VITE_KEYCLOAK_CLIENT_ID=archive-frontend
-```
-
-Use the actual Render hostnames if Render changes either service name. Redeploy
-the Vercel project after adding or changing any `VITE_` variable because Vite
-embeds them during the build.
-
-If the final Vercel URL differs from the value entered when creating the Render
-Blueprint, update `CORS_ALLOWED_ORIGINS` and redeploy the API. Also update the
-`archive-frontend` client's **Valid redirect URIs** and **Web origins** in the
-Keycloak admin console. Startup realm imports do not overwrite an existing
-realm.
-
-## Deployment verification
-
-After all services are live:
-
-1. Open `https://<keycloak-host>/health/ready`.
-2. Open `https://<api-host>/actuator/health`.
-3. Open the Vercel URL and confirm it redirects to Keycloak.
-4. Create an application user in the `digital-archive` realm and assign an
-   appropriate role such as `ADMIN`.
-5. Sign in and verify API requests from the browser do not show CORS errors.
-6. Upload and download a file, then redeploy the API and confirm the file
-   remains available.
-
-## Current application scope
-
-Implemented:
-
-- Keycloak login, logout, token refresh, and protected routes
-- Category and department management interfaces
-- Backend APIs for users, categories, departments, versions, and workflow
-- Document service, file storage, auditing, Flyway migrations, and PostgreSQL
-- Render and Vercel deployment configuration
-
-Still product work rather than deployment work:
-
-- Document list, upload, detail, version, and workflow user interfaces
-- Dashboard statistics
-- User-management and audit-log user interfaces
-- Read APIs for audit logs and workflow history
-- Automated frontend and backend tests
+Then run the backend with Maven using the application database on port `5533`.

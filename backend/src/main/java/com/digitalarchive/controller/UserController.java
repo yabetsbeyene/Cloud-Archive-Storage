@@ -1,11 +1,26 @@
 package com.digitalarchive.controller;
 
-import com.digitalarchive.domain.entity.AppUser;
-import com.digitalarchive.repository.AppUserRepository;
+import com.digitalarchive.dto.AppUserResponse;
+import com.digitalarchive.dto.CreateManagedUserRequest;
+import com.digitalarchive.dto.ManagedUserResponse;
+import com.digitalarchive.dto.UpdateManagedUserRequest;
+import com.digitalarchive.service.AppUserService;
+import com.digitalarchive.service.ManagedUserService;
+import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
+import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
-import org.springframework.web.bind.annotation.*;
 import org.springframework.security.access.prepost.PreAuthorize;
+import org.springframework.security.core.annotation.AuthenticationPrincipal;
+import org.springframework.security.oauth2.jwt.Jwt;
+import org.springframework.web.bind.annotation.DeleteMapping;
+import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PathVariable;
+import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.PutMapping;
+import org.springframework.web.bind.annotation.RequestBody;
+import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RestController;
 
 import java.util.List;
 import java.util.UUID;
@@ -15,47 +30,56 @@ import java.util.UUID;
 @RequestMapping("/api/users")
 public class UserController {
 
-    private final AppUserRepository appUserRepository;
+    private final AppUserService appUserService;
+    private final ManagedUserService managedUserService;
+
+    @GetMapping("/me")
+    public ResponseEntity<AppUserResponse> getCurrentUser(@AuthenticationPrincipal Jwt jwt) {
+        return appUserService.getActive(actorId(jwt))
+                .map(ResponseEntity::ok)
+                .orElseGet(() -> ResponseEntity.notFound().build());
+    }
 
     @GetMapping
-    public List<AppUser> listAll() {
-        return appUserRepository.findAll();
+    @PreAuthorize("hasRole('ADMIN')")
+    public List<ManagedUserResponse> listAll() {
+        return managedUserService.list();
     }
 
     @GetMapping("/{sub}")
-    public ResponseEntity<AppUser> getBySub(@PathVariable UUID sub) {
-        return appUserRepository.findById(sub)
-                .map(ResponseEntity::ok)
-                .orElse(ResponseEntity.notFound().build());
+    @PreAuthorize("hasRole('ADMIN')")
+    public ManagedUserResponse getBySub(@PathVariable UUID sub) {
+        return managedUserService.get(sub);
     }
 
     @PostMapping
-    @PreAuthorize("hasAnyRole('ADMIN')")
-    public ResponseEntity<AppUser> create(@RequestBody AppUser user) {
-        AppUser saved = appUserRepository.save(user);
-        return ResponseEntity.ok(saved);
+    @PreAuthorize("hasRole('ADMIN')")
+    public ResponseEntity<ManagedUserResponse> create(
+            @Valid @RequestBody CreateManagedUserRequest request,
+            @AuthenticationPrincipal Jwt jwt) {
+        ManagedUserResponse created = managedUserService.create(request, actorId(jwt));
+        return ResponseEntity.status(HttpStatus.CREATED).body(created);
     }
 
     @PutMapping("/{sub}")
-    @PreAuthorize("hasAnyRole('ADMIN') or #sub.toString() == authentication.name")
-    public ResponseEntity<AppUser> update(@PathVariable UUID sub, @RequestBody AppUser updated) {
-        return appUserRepository.findById(sub)
-                .map(existing -> {
-                    existing.setFullName(updated.getFullName());
-                    existing.setEmail(updated.getEmail());
-                    existing.setDepartment(updated.getDepartment());
-                    return ResponseEntity.ok(appUserRepository.save(existing));
-                })
-                .orElse(ResponseEntity.notFound().build());
+    @PreAuthorize("hasRole('ADMIN')")
+    public ManagedUserResponse update(
+            @PathVariable UUID sub,
+            @Valid @RequestBody UpdateManagedUserRequest request,
+            @AuthenticationPrincipal Jwt jwt) {
+        return managedUserService.update(sub, request, actorId(jwt));
     }
 
     @DeleteMapping("/{sub}")
     @PreAuthorize("hasRole('ADMIN')")
-    public ResponseEntity<Void> delete(@PathVariable UUID sub) {
-        if (!appUserRepository.existsById(sub)) {
-            return ResponseEntity.notFound().build();
-        }
-        appUserRepository.deleteById(sub);
+    public ResponseEntity<Void> deactivate(
+            @PathVariable UUID sub,
+            @AuthenticationPrincipal Jwt jwt) {
+        managedUserService.deactivate(sub, actorId(jwt));
         return ResponseEntity.noContent().build();
+    }
+
+    private UUID actorId(Jwt jwt) {
+        return UUID.fromString(jwt.getSubject());
     }
 }

@@ -5,12 +5,17 @@ export const versionsApi = {
   list: (documentId: string) =>
     api.get<DocumentVersion[]>(`/documents/${documentId}/versions`).then((r) => r.data),
 
-  upload: (documentId: string, file: File) => {
+  upload: (documentId: string, file: File, onProgress?: (percentage: number) => void) => {
     const formData = new FormData()
     formData.append('file', file)
     return api
       .post<DocumentVersion>(`/documents/${documentId}/versions`, formData, {
         headers: { 'Content-Type': 'multipart/form-data' },
+        onUploadProgress: (event) => {
+          if (event.total && onProgress) {
+            onProgress(Math.round((event.loaded / event.total) * 100))
+          }
+        },
       })
       .then((r) => r.data)
   },

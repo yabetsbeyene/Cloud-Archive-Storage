@@ -8,6 +8,7 @@ import { DashboardPage } from '@/pages/Dashboard/DashboardPage'
 import { DocumentsPage } from '@/pages/Documents/DocumentsPage'
 import { DocumentDetailPage } from '@/pages/Documents/DocumentDetailPage'
 import { UploadPage } from '@/pages/Documents/UploadPage'
+import { ReviewQueuePage } from '@/pages/Documents/ReviewQueuePage'
 import { CategoriesPage } from '@/pages/Categories/CategoriesPage.tsx'
 import { DepartmentsPage } from '@/pages/Departments/DepartmentsPage'
 import { UsersPage } from '@/pages/Users/UsersPage'
@@ -29,6 +30,7 @@ export function AppRoutes() {
 
           <Route path="/documents" element={<DocumentsPage />} />
           <Route path="/documents/new" element={<UploadPage />} />
+          <Route path="/reviews" element={<ReviewQueuePage />} />
           <Route path="/documents/:id" element={<DocumentDetailPage />} />
           <Route path="/documents/:id/edit" element={<DocumentDetailPage />} />
           <Route path="/documents/:id/history" element={<DocumentDetailPage />} />

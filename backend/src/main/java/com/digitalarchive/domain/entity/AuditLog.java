@@ -40,15 +40,10 @@ public class AuditLog {
     @Column(name = "resource_id")
     private UUID resourceId;
 
-    // Maps Java String <-> Postgres JSONB column
-    @JdbcTypeCode(SqlTypes.JSON)
-    @Column(name = "details", columnDefinition = "jsonb")
+    @Column(name = "details", columnDefinition = "text")
     private String details;
 
-    // Postgres INET has no native Hibernate type; SqlTypes.OTHER matches
-    // how the Postgres JDBC driver reports it, so schema validation passes
-    @JdbcTypeCode(SqlTypes.OTHER)
-    @Column(name = "ip_address", columnDefinition = "inet")
+    @Column(name = "ip_address", length = 45)
     private String ipAddress;
 
     @Column(name = "created_at", insertable = false, updatable = false)

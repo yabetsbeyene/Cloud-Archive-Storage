@@ -1,20 +1,22 @@
+export interface CategorySummary {
+  categoryId: string
+  name: string
+}
+
 export interface Category {
   categoryId: string
   name: string
   description: string | null
-  parentCategory: Category | null
+  parentCategory: CategorySummary | null
   retentionPeriodMonths: number | null
   createdAt: string
   updatedAt: string
-  createdBy: string | null
-  updatedBy: string | null
-  deletedAt: string | null
-  deletedBy: string | null
 }
 
 export interface CreateCategoryInput {
   name: string
   description?: string
+  parentCategoryId?: string
   retentionPeriodMonths?: number
 }
 

@@ -1,5 +1,6 @@
 package com.digitalarchive.domain.entity;
 
+import com.digitalarchive.domain.enums.ThemePreference;
 import jakarta.persistence.*;
 import lombok.*;
 
@@ -23,6 +24,9 @@ public class AppUser {
     @Column(name = "user_sub", updatable = false, nullable = false)
     private UUID userSub;
 
+    @Column(name = "username", nullable = false, length = 150)
+    private String username;
+
     @Column(name = "full_name", nullable = false, length = 200)
     private String fullName;
 
@@ -35,6 +39,10 @@ public class AppUser {
 
     @Column(name = "is_active", nullable = false)
     private Boolean isActive;
+
+    @Enumerated(EnumType.STRING)
+    @Column(name = "theme_preference", nullable = false, length = 20)
+    private ThemePreference themePreference;
 
     @Column(name = "created_at", insertable = false, updatable = false)
     private OffsetDateTime createdAt;

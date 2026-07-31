@@ -3,6 +3,7 @@
   "enabled": true,
   "sslRequired": "external",
   "registrationAllowed": false,
+  "editUsernameAllowed": true,
   "roles": {
     "realm": [
       { "name": "ADMIN", "description": "Full system access" },
@@ -27,6 +28,63 @@
         "http://localhost:5173",
         "__FRONTEND_URL__"
       ]
+    },
+    {
+      "clientId": "archive-backend-admin",
+      "name": "Archive backend user management",
+      "secret": "__BACKEND_ADMIN_CLIENT_SECRET__",
+      "publicClient": false,
+      "bearerOnly": false,
+      "standardFlowEnabled": false,
+      "directAccessGrantsEnabled": false,
+      "serviceAccountsEnabled": true
+    }
+  ],
+  "users": [
+    {
+      "username": "service-account-archive-backend-admin",
+      "enabled": true,
+      "serviceAccountClientId": "archive-backend-admin",
+      "clientRoles": {
+        "realm-management": [
+          "manage-users",
+          "query-users",
+          "view-users",
+          "view-realm"
+        ]
+      }
+    },
+    {
+      "username": "admin.user",
+      "enabled": true,
+      "firstName": "System",
+      "lastName": "Administrator",
+      "email": "admin.user@example.com",
+      "emailVerified": true,
+      "credentials": [
+        {
+          "type": "password",
+          "value": "password123",
+          "temporary": false
+        }
+      ],
+      "realmRoles": ["ADMIN"]
+    },
+    {
+      "username": "dept.user",
+      "enabled": true,
+      "firstName": "Department",
+      "lastName": "User",
+      "email": "dept.user@example.com",
+      "emailVerified": true,
+      "credentials": [
+        {
+          "type": "password",
+          "value": "password123",
+          "temporary": false
+        }
+      ],
+      "realmRoles": ["DEPT_USER"]
     }
   ]
 }

@@ -1,5 +1,5 @@
 import type { Category } from './category'
-import type { Department } from './department'
+import type { Department, DepartmentSummary } from './department'
 import type { DocumentVersion } from './documentVersion'
 
 export type ClassificationLevel = 'PUBLIC' | 'INTERNAL' | 'CONFIDENTIAL' | 'SECRET'
@@ -25,10 +25,14 @@ export interface Document {
   archivedAt: string | null
   createdAt: string
   updatedAt: string
+  uploadedBy: {
+    username: string
+    fullName: string
+    email: string
+    department: DepartmentSummary | null
+  } | null
   createdBy: string | null
   updatedBy: string | null
-  deletedAt: string | null
-  deletedBy: string | null
 }
 
 export interface CreateDocumentInput {

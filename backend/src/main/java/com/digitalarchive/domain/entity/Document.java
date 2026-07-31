@@ -68,6 +68,21 @@ public class Document {
     @Column(name = "created_by", nullable = false)
     private UUID createdBy;
 
+    @Column(name = "uploader_username", nullable = false, length = 150)
+    private String uploaderUsername;
+
+    @Column(name = "uploader_full_name", nullable = false, length = 200)
+    private String uploaderFullName;
+
+    @Column(name = "uploader_email", nullable = false, length = 255)
+    private String uploaderEmail;
+
+    @Column(name = "uploader_department_id")
+    private UUID uploaderDepartmentId;
+
+    @Column(name = "uploader_department_name", length = 150)
+    private String uploaderDepartmentName;
+
     @Column(name = "updated_by")
     private UUID updatedBy;
 

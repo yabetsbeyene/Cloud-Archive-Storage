@@ -1,0 +1,107 @@
+services:
+  postgres-app:
+    image: postgres:16-alpine
+    container_name: archive-postgres-app
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: digital_archive
+      POSTGRES_USER: archive_app
+      POSTGRES_PASSWORD: archive_app_password
+    ports:
+      - "5533:5432"
+    volumes:
+      - archive_pg_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U archive_app -d digital_archive"]
+      interval: 5s
+      timeout: 5s
+      retries: 20
+
+  postgres-keycloak:
+    image: postgres:16-alpine
+    container_name: archive-postgres-keycloak
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: keycloak
+      POSTGRES_USER: keycloak
+      POSTGRES_PASSWORD: keycloak_password
+    volumes:
+      - keycloak_pg_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U keycloak -d keycloak"]
+      interval: 5s
+      timeout: 5s
+      retries: 20
+
+  keycloak:
+    build:
+      context: ./backend/keycloak
+      dockerfile: Dockerfile
+    container_name: archive-keycloak
+    restart: unless-stopped
+    environment:
+      KC_DB: postgres
+      KC_DB_URL: jdbc:postgresql://postgres-keycloak:5432/keycloak
+      KC_DB_USERNAME: keycloak
+      KC_DB_PASSWORD: keycloak_password
+      KC_BOOTSTRAP_ADMIN_USERNAME: admin
+      KC_BOOTSTRAP_ADMIN_PASSWORD: admin
+      KC_HTTP_PORT: 8080
+      KC_HOSTNAME: http://localhost:5173/auth
+      KC_HTTP_RELATIVE_PATH: /auth
+      FRONTEND_URL: http://localhost:5173
+      KEYCLOAK_ADMIN_CLIENT_SECRET: local-dev-archive-admin-secret
+    depends_on:
+      postgres-keycloak:
+        condition: service_healthy
+
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    container_name: archive-backend
+    restart: unless-stopped
+    environment:
+      DB_HOST: postgres-app
+      DB_PORT: 5432
+      DB_NAME: digital_archive
+      DB_USER: archive_app
+      DB_PASSWORD: archive_app_password
+      KEYCLOAK_ISSUER_URI: http://localhost:5173/auth/realms/digital-archive
+      KEYCLOAK_JWK_SET_URI: http://keycloak:8080/auth/realms/digital-archive/protocol/openid-connect/certs
+      KEYCLOAK_ADMIN_URL: http://keycloak:8080/auth
+      KEYCLOAK_ADMIN_REALM: digital-archive
+      KEYCLOAK_ADMIN_CLIENT_ID: archive-backend-admin
+      KEYCLOAK_ADMIN_CLIENT_SECRET: local-dev-archive-admin-secret
+      CORS_ALLOWED_ORIGINS: http://localhost:5173
+      FILE_STORAGE_LOCATION: /app/storage
+      PORT: 8080
+    volumes:
+      - archive_file_storage:/app/storage
+    depends_on:
+      postgres-app:
+        condition: service_healthy
+      keycloak:
+        condition: service_started
+
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+      args:
+        VITE_API_BASE_URL: /api
+        VITE_KEYCLOAK_URL: http://localhost:5173/auth
+        VITE_KEYCLOAK_REALM: digital-archive
+        VITE_KEYCLOAK_CLIENT_ID: archive-frontend
+    container_name: archive-frontend
+    restart: unless-stopped
+    ports:
+      - "5173:80"
+    depends_on:
+      - backend
+      - keycloak
+
+volumes:
+  archive_pg_data:
+  keycloak_pg_data:
+  archive_file_storage:

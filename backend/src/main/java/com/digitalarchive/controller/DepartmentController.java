@@ -1,11 +1,17 @@
 package com.digitalarchive.controller;
 
-import com.digitalarchive.domain.entity.Department;
-import com.digitalarchive.repository.DepartmentRepository;
+import com.digitalarchive.dto.DepartmentRequest;
+import com.digitalarchive.dto.DepartmentResponse;
+import com.digitalarchive.service.DepartmentService;
+import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
+import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
-import org.springframework.web.bind.annotation.*;
 import org.springframework.security.access.prepost.PreAuthorize;
+import org.springframework.security.core.annotation.AuthenticationPrincipal;
+import org.springframework.security.oauth2.jwt.Jwt;
+import org.springframework.web.bind.annotation.*;
+
 import java.util.List;
 import java.util.UUID;
 
@@ -14,48 +20,51 @@ import java.util.UUID;
 @RequestMapping("/api/departments")
 public class DepartmentController {
 
-    private final DepartmentRepository departmentRepository;
+    private final DepartmentService departmentService;
 
     @GetMapping
-    public List<Department> listAll() {
-        return departmentRepository.findAll();
+    public List<DepartmentResponse> listAll() {
+        return departmentService.listActive();
     }
 
     @GetMapping("/{id}")
-    public ResponseEntity<Department> getById(@PathVariable UUID id) {
-        return departmentRepository.findById(id)
+    public ResponseEntity<DepartmentResponse> getById(@PathVariable UUID id) {
+        return departmentService.getActive(id)
                 .map(ResponseEntity::ok)
-                .orElse(ResponseEntity.notFound().build());
+                .orElseGet(() -> ResponseEntity.notFound().build());
     }
 
     @PostMapping
-    @PreAuthorize("hasAnyRole('ADMIN', 'ARCHIVIST')")
-    public ResponseEntity<Department> create(@RequestBody Department department) {
-        department.setDepartmentId(null);
-        Department saved = departmentRepository.save(department);
-        return ResponseEntity.ok(saved);
+    @PreAuthorize("hasRole('ADMIN')")
+    public ResponseEntity<DepartmentResponse> create(
+            @Valid @RequestBody DepartmentRequest request,
+            @AuthenticationPrincipal Jwt jwt) {
+        DepartmentResponse created = departmentService.create(request, actorId(jwt));
+        return ResponseEntity.status(HttpStatus.CREATED).body(created);
     }
 
     @PutMapping("/{id}")
-    @PreAuthorize("hasAnyRole('ADMIN', 'ARCHIVIST')")
-    public ResponseEntity<Department> update(@PathVariable UUID id, @RequestBody Department updated) {
-        return departmentRepository.findById(id)
-                .map(existing -> {
-                    existing.setName(updated.getName());
-                    existing.setDescription(updated.getDescription());
-                    existing.setParentDepartment(updated.getParentDepartment());
-                    return ResponseEntity.ok(departmentRepository.save(existing));
-                })
-                .orElse(ResponseEntity.notFound().build());
+    @PreAuthorize("hasRole('ADMIN')")
+    public ResponseEntity<DepartmentResponse> update(
+            @PathVariable UUID id,
+            @Valid @RequestBody DepartmentRequest request,
+            @AuthenticationPrincipal Jwt jwt) {
+        return departmentService.update(id, request, actorId(jwt))
+                .map(ResponseEntity::ok)
+                .orElseGet(() -> ResponseEntity.notFound().build());
     }
 
     @DeleteMapping("/{id}")
     @PreAuthorize("hasRole('ADMIN')")
-    public ResponseEntity<Void> delete(@PathVariable UUID id) {
-        if (!departmentRepository.existsById(id)) {
-            return ResponseEntity.notFound().build();
-        }
-        departmentRepository.deleteById(id);
-        return ResponseEntity.noContent().build();
+    public ResponseEntity<Void> delete(
+            @PathVariable UUID id,
+            @AuthenticationPrincipal Jwt jwt) {
+        return departmentService.softDelete(id, actorId(jwt))
+                ? ResponseEntity.noContent().build()
+                : ResponseEntity.notFound().build();
+    }
+
+    private UUID actorId(Jwt jwt) {
+        return UUID.fromString(jwt.getSubject());
     }
 }

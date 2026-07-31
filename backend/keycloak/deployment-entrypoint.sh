@@ -1,26 +1,12 @@
 #!/bin/bash
 set -euo pipefail
 
-# Render exposes these values automatically. Explicit KC_* values still win.
-if [[ -z "${KC_HOSTNAME:-}" && -n "${RENDER_EXTERNAL_HOSTNAME:-}" ]]; then
-  export KC_HOSTNAME="${RENDER_EXTERNAL_HOSTNAME}"
-fi
-
 if [[ -z "${KC_HTTP_PORT:-}" && -n "${PORT:-}" ]]; then
   export KC_HTTP_PORT="${PORT}"
 fi
 
-# Keep manually configured Keycloak 25 services compatible after upgrading.
-if [[ -z "${KC_BOOTSTRAP_ADMIN_USERNAME:-}" && -n "${KEYCLOAK_ADMIN:-}" ]]; then
-  export KC_BOOTSTRAP_ADMIN_USERNAME="${KEYCLOAK_ADMIN}"
-fi
-
-if [[ -z "${KC_BOOTSTRAP_ADMIN_PASSWORD:-}" && -n "${KEYCLOAK_ADMIN_PASSWORD:-}" ]]; then
-  export KC_BOOTSTRAP_ADMIN_PASSWORD="${KEYCLOAK_ADMIN_PASSWORD}"
-fi
-
-# Render supplies postgres://user:password@host:port/database, but Keycloak
-# expects jdbc:postgresql://host:port/database and separate credentials.
+# Some hosting environments supply postgres://user:password@host:port/database,
+# while Keycloak expects a JDBC URL and separate credentials.
 if [[ -z "${KC_DB_URL:-}" ]]; then
   if [[ -z "${DATABASE_URL:-}" ]]; then
     echo "DATABASE_URL or KC_DB_URL must be configured" >&2
@@ -42,6 +28,11 @@ if [[ -z "${FRONTEND_URL:-}" ]]; then
   exit 1
 fi
 
+if [[ -z "${KEYCLOAK_ADMIN_CLIENT_SECRET:-}" ]]; then
+  echo "KEYCLOAK_ADMIN_CLIENT_SECRET must be configured" >&2
+  exit 1
+fi
+
 frontend_url="${FRONTEND_URL%/}"
 realm_template="/opt/keycloak/data/import/realm-export.template"
 realm_file="/opt/keycloak/data/import/realm-export.json"
@@ -49,6 +40,7 @@ realm_file="/opt/keycloak/data/import/realm-export.json"
 : > "${realm_file}"
 while IFS= read -r line || [[ -n "${line}" ]]; do
   line="${line//__FRONTEND_URL__/${frontend_url}}"
+  line="${line//__BACKEND_ADMIN_CLIENT_SECRET__/${KEYCLOAK_ADMIN_CLIENT_SECRET}}"
   printf '%s\n' "${line}" >> "${realm_file}"
 done < "${realm_template}"
 

@@ -1,11 +1,16 @@
 package com.digitalarchive.controller;
 
-import com.digitalarchive.domain.entity.Category;
-import com.digitalarchive.repository.CategoryRepository;
+import com.digitalarchive.dto.CategoryRequest;
+import com.digitalarchive.dto.CategoryResponse;
+import com.digitalarchive.service.CategoryService;
+import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
+import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
-import org.springframework.web.bind.annotation.*;
 import org.springframework.security.access.prepost.PreAuthorize;
+import org.springframework.security.core.annotation.AuthenticationPrincipal;
+import org.springframework.security.oauth2.jwt.Jwt;
+import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
 import java.util.UUID;
@@ -15,49 +20,51 @@ import java.util.UUID;
 @RequestMapping("/api/categories")
 public class CategoryController {
 
-    private final CategoryRepository categoryRepository;
+    private final CategoryService categoryService;
 
     @GetMapping
-    public List<Category> listAll() {
-        return categoryRepository.findAll();
+    public List<CategoryResponse> listAll() {
+        return categoryService.listActive();
     }
 
     @GetMapping("/{id}")
-    public ResponseEntity<Category> getById(@PathVariable UUID id) {
-        return categoryRepository.findById(id)
+    public ResponseEntity<CategoryResponse> getById(@PathVariable UUID id) {
+        return categoryService.getActive(id)
                 .map(ResponseEntity::ok)
-                .orElse(ResponseEntity.notFound().build());
+                .orElseGet(() -> ResponseEntity.notFound().build());
     }
 
     @PostMapping
-    @PreAuthorize("hasAnyRole('ADMIN', 'ARCHIVIST')")
-    public ResponseEntity<Category> create(@RequestBody Category category) {
-        category.setCategoryId(null);
-        Category saved = categoryRepository.save(category);
-        return ResponseEntity.ok(saved);
+    @PreAuthorize("hasRole('ADMIN')")
+    public ResponseEntity<CategoryResponse> create(
+            @Valid @RequestBody CategoryRequest request,
+            @AuthenticationPrincipal Jwt jwt) {
+        CategoryResponse created = categoryService.create(request, actorId(jwt));
+        return ResponseEntity.status(HttpStatus.CREATED).body(created);
     }
 
     @PutMapping("/{id}")
-    @PreAuthorize("hasAnyRole('ADMIN', 'ARCHIVIST')")
-    public ResponseEntity<Category> update(@PathVariable UUID id, @RequestBody Category updated) {
-        return categoryRepository.findById(id)
-                .map(existing -> {
-                    existing.setName(updated.getName());
-                    existing.setDescription(updated.getDescription());
-                    existing.setParentCategory(updated.getParentCategory());
-                    existing.setRetentionPeriodMonths(updated.getRetentionPeriodMonths());
-                    return ResponseEntity.ok(categoryRepository.save(existing));
-                })
-                .orElse(ResponseEntity.notFound().build());
+    @PreAuthorize("hasRole('ADMIN')")
+    public ResponseEntity<CategoryResponse> update(
+            @PathVariable UUID id,
+            @Valid @RequestBody CategoryRequest request,
+            @AuthenticationPrincipal Jwt jwt) {
+        return categoryService.update(id, request, actorId(jwt))
+                .map(ResponseEntity::ok)
+                .orElseGet(() -> ResponseEntity.notFound().build());
     }
 
     @DeleteMapping("/{id}")
     @PreAuthorize("hasRole('ADMIN')")
-    public ResponseEntity<Void> delete(@PathVariable UUID id) {
-        if (!categoryRepository.existsById(id)) {
-            return ResponseEntity.notFound().build();
-        }
-        categoryRepository.deleteById(id);
-        return ResponseEntity.noContent().build();
+    public ResponseEntity<Void> delete(
+            @PathVariable UUID id,
+            @AuthenticationPrincipal Jwt jwt) {
+        return categoryService.softDelete(id, actorId(jwt))
+                ? ResponseEntity.noContent().build()
+                : ResponseEntity.notFound().build();
+    }
+
+    private UUID actorId(Jwt jwt) {
+        return UUID.fromString(jwt.getSubject());
     }
 }

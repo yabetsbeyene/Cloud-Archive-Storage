@@ -7,14 +7,22 @@ import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 
 import java.util.List;
+import java.util.Collection;
 import java.util.Optional;
 import java.util.UUID;
 
 public interface DocumentRepository extends JpaRepository<Document, UUID> {
 
-    Optional<Document> findByReferenceNumber(String referenceNumber);
+    List<Document> findByStatusInAndDeletedAtIsNullOrderByCreatedAtDesc(
+            Collection<DocumentStatus> statuses);
 
-    List<Document> findByStatusAndDeletedAtIsNull(DocumentStatus status);
+    List<Document> findByCreatedByAndDeletedAtIsNullOrderByCreatedAtDesc(UUID createdBy);
+
+    List<Document> findByStatusAndDeletedAtIsNullOrderByCreatedAtDesc(DocumentStatus status);
+
+    List<Document> findByDeletedAtIsNullOrderByCreatedAtDesc();
+
+    long countByDeletedAtIsNull();
 
     @Query(value = """
             SELECT * FROM documents d

@@ -10,6 +10,7 @@ import org.springframework.security.config.http.SessionCreationPolicy;
 import org.springframework.security.core.GrantedAuthority;
 import org.springframework.security.core.authority.SimpleGrantedAuthority;
 import org.springframework.security.oauth2.jwt.Jwt;
+import org.springframework.security.oauth2.server.resource.web.authentication.BearerTokenAuthenticationFilter;
 import org.springframework.security.oauth2.server.resource.authentication.JwtAuthenticationConverter;
 import org.springframework.security.web.SecurityFilterChain;
 import org.springframework.web.cors.CorsConfiguration;
@@ -29,21 +30,36 @@ import java.util.stream.Collectors;
 @EnableMethodSecurity(prePostEnabled = true)
 public class SecurityConfig {
 
-    // Comma-separated list, e.g. "http://localhost:5173,https://your-app.vercel.app"
+    // Comma-separated list of browser origins allowed to call the API.
     @Value("${app.cors.allowed-origins:http://localhost:5173}")
     private String allowedOriginsRaw;
 
     @Bean
-    public SecurityFilterChain filterChain(HttpSecurity http) throws Exception {
+    public SecurityFilterChain filterChain(
+            HttpSecurity http,
+            AuthenticatedUserSynchronizationFilter authenticatedUserSynchronizationFilter,
+            ApiSecurityErrorWriter securityErrorWriter) throws Exception {
         http
                 .cors(cors -> cors.configurationSource(corsConfigurationSource()))
                 .csrf(AbstractHttpConfigurer::disable)
                 .sessionManagement(sm -> sm.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
+                .exceptionHandling(errors -> errors
+                        .authenticationEntryPoint((request, response, exception) ->
+                                securityErrorWriter.write(
+                                        request, response, 401, "Unauthorized",
+                                        "Authentication is required"))
+                        .accessDeniedHandler((request, response, exception) ->
+                                securityErrorWriter.write(
+                                        request, response, 403, "Forbidden",
+                                        "You do not have permission to perform this action")))
                 .authorizeHttpRequests(auth -> auth
                         .requestMatchers("/actuator/health").permitAll()
                         .anyRequest().authenticated())
                 .oauth2ResourceServer(oauth2 -> oauth2
-                        .jwt(jwt -> jwt.jwtAuthenticationConverter(keycloakJwtAuthenticationConverter())));
+                        .jwt(jwt -> jwt.jwtAuthenticationConverter(keycloakJwtAuthenticationConverter())))
+                .addFilterAfter(
+                        authenticatedUserSynchronizationFilter,
+                        BearerTokenAuthenticationFilter.class);
 
         return http.build();
     }

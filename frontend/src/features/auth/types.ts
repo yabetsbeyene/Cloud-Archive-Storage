@@ -17,4 +17,5 @@ export interface AuthContextValue {
   hasRole: (role: Role) => boolean
   login: () => void
   logout: () => void
+  refreshUser: () => Promise<void>
 }

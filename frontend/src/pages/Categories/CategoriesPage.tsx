@@ -13,6 +13,8 @@ import { ConfirmDialog } from '@/components/ui/ConfirmDialog'
 import { LoadingSpinner } from '@/components/ui/LoadingSpinner'
 import { EmptyState } from '@/components/ui/EmptyState'
 import { ErrorMessage } from '@/components/ui/ErrorMessage'
+import { getApiErrorMessage } from '@/api/error-message'
+import { useAuth } from '@/features/auth/auth-context'
 
 const schema = z.object({
   name: z.string().min(1, 'Name is required').max(150),
@@ -23,6 +25,8 @@ type FormInput = z.input<typeof schema>
 type FormValues = z.output<typeof schema>
 
 export function CategoriesPage() {
+  const { hasRole } = useAuth()
+  const canManage = hasRole('ADMIN')
   const queryClient = useQueryClient()
   const [editing, setEditing] = useState<Category | null>(null)
   const [isFormOpen, setIsFormOpen] = useState(false)
@@ -83,6 +87,8 @@ export function CategoriesPage() {
   function closeForm() {
     setIsFormOpen(false)
     setEditing(null)
+    createMutation.reset()
+    updateMutation.reset()
   }
 
   function onSubmit(values: FormValues) {
@@ -99,9 +105,11 @@ export function CategoriesPage() {
     <div>
       <div className="flex items-center justify-between">
         <h1 className="text-xl font-semibold text-gray-800">Categories</h1>
-        <Button onClick={openCreateForm}>
-          <Plus size={16} /> New category
-        </Button>
+        {canManage && (
+          <Button onClick={openCreateForm}>
+            <Plus size={16} /> New category
+          </Button>
+        )}
       </div>
 
       <div className="mt-4">
@@ -119,7 +127,7 @@ export function CategoriesPage() {
                   <th className="px-4 py-3">Name</th>
                   <th className="px-4 py-3">Description</th>
                   <th className="px-4 py-3">Retention (months)</th>
-                  <th className="px-4 py-3 text-right">Actions</th>
+                  {canManage && <th className="px-4 py-3 text-right">Actions</th>}
                 </tr>
               </thead>
               <tbody>
@@ -128,7 +136,7 @@ export function CategoriesPage() {
                     <td className="px-4 py-3 font-medium text-gray-800">{cat.name}</td>
                     <td className="px-4 py-3 text-gray-500">{cat.description || '—'}</td>
                     <td className="px-4 py-3 text-gray-500">{cat.retentionPeriodMonths ?? '—'}</td>
-                    <td className="px-4 py-3">
+                    {canManage && <td className="px-4 py-3">
                       <div className="flex justify-end gap-1">
                         <button
                           onClick={() => openEditForm(cat)}
@@ -140,12 +148,12 @@ export function CategoriesPage() {
                         <button
                           onClick={() => setDeleting(cat)}
                           aria-label={`Delete ${cat.name}`}
-                          className="rounded-md p-1.5 text-gray-500 hover:bg-red-50 hover:text-red-600"
+                          className="rounded-md p-1.5 text-rose-700 hover:bg-rose-50 hover:text-rose-800"
                         >
                           <Trash2 size={16} />
                         </button>
                       </div>
-                    </td>
+                    </td>}
                   </tr>
                 ))}
               </tbody>
@@ -154,7 +162,7 @@ export function CategoriesPage() {
         )}
       </div>
 
-      <Modal isOpen={isFormOpen} onClose={closeForm} title={editing ? 'Edit category' : 'New category'}>
+      <Modal isOpen={canManage && isFormOpen} onClose={closeForm} title={editing ? 'Edit category' : 'New category'}>
         <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
           <Input label="Name" {...register('name')} error={errors.name?.message} />
           <Input label="Description" {...register('description')} error={errors.description?.message} />
@@ -164,6 +172,14 @@ export function CategoriesPage() {
             {...register('retentionPeriodMonths')}
             error={errors.retentionPeriodMonths?.message}
           />
+          {(createMutation.isError || updateMutation.isError) && (
+            <p role="alert" className="rounded-lg bg-rose-50 px-3 py-2 text-sm text-rose-700">
+              {getApiErrorMessage(
+                editing ? updateMutation.error : createMutation.error,
+                'The category could not be saved. Check the values and try again.',
+              )}
+            </p>
+          )}
           <div className="flex justify-end gap-2 pt-2">
             <Button type="button" variant="secondary" onClick={closeForm}>
               Cancel
@@ -176,13 +192,18 @@ export function CategoriesPage() {
       </Modal>
 
       <ConfirmDialog
-        isOpen={deleting !== null}
+        isOpen={canManage && deleting !== null}
         title="Delete category"
         message={`Are you sure you want to delete "${deleting?.name}"? This cannot be undone.`}
         isLoading={deleteMutation.isPending}
         onConfirm={() => deleting && deleteMutation.mutate(deleting.categoryId)}
         onCancel={() => setDeleting(null)}
       />
+      {deleteMutation.isError && (
+        <div className="fixed bottom-4 right-4 z-50 max-w-sm rounded-lg bg-rose-700 px-4 py-3 text-sm text-white shadow-lg" role="alert">
+          {getApiErrorMessage(deleteMutation.error, 'The category could not be deleted.')}
+        </div>
+      )}
     </div>
   )
 }

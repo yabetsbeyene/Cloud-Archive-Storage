@@ -1,11 +1,12 @@
 import { api } from './axios'
-import type { AppUser, CreateUserInput, UpdateUserInput } from '@/types/user'
+import type { AppUser, CreateUserInput, ManagedUser, UpdateUserInput } from '@/types/user'
 
 export const usersApi = {
-  list: () => api.get<AppUser[]>('/users').then((r) => r.data),
-  get: (sub: string) => api.get<AppUser>(`/users/${sub}`).then((r) => r.data),
-  create: (input: CreateUserInput) => api.post<AppUser>('/users', input).then((r) => r.data),
+  me: () => api.get<AppUser>('/users/me').then((r) => r.data),
+  list: () => api.get<ManagedUser[]>('/users').then((r) => r.data),
+  get: (sub: string) => api.get<ManagedUser>(`/users/${sub}`).then((r) => r.data),
+  create: (input: CreateUserInput) => api.post<ManagedUser>('/users', input).then((r) => r.data),
   update: (sub: string, input: UpdateUserInput) =>
-    api.put<AppUser>(`/users/${sub}`, input).then((r) => r.data),
+    api.put<ManagedUser>(`/users/${sub}`, input).then((r) => r.data),
   remove: (sub: string) => api.delete(`/users/${sub}`).then(() => undefined),
 }

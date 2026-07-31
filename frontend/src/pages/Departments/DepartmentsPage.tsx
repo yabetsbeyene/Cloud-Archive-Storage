@@ -13,6 +13,7 @@ import { ConfirmDialog } from '@/components/ui/ConfirmDialog'
 import { LoadingSpinner } from '@/components/ui/LoadingSpinner'
 import { EmptyState } from '@/components/ui/EmptyState'
 import { ErrorMessage } from '@/components/ui/ErrorMessage'
+import { useAuth } from '@/features/auth/auth-context'
 
 const schema = z.object({
   name: z.string().min(1, 'Name is required').max(150),
@@ -21,6 +22,8 @@ const schema = z.object({
 type FormValues = z.infer<typeof schema>
 
 export function DepartmentsPage() {
+  const { hasRole } = useAuth()
+  const canManage = hasRole('ADMIN')
   const queryClient = useQueryClient()
   const [editing, setEditing] = useState<Department | null>(null)
   const [isFormOpen, setIsFormOpen] = useState(false)
@@ -94,9 +97,11 @@ export function DepartmentsPage() {
     <div>
       <div className="flex items-center justify-between">
         <h1 className="text-xl font-semibold text-gray-800">Departments</h1>
-        <Button onClick={openCreateForm}>
-          <Plus size={16} /> New department
-        </Button>
+        {canManage && (
+          <Button onClick={openCreateForm}>
+            <Plus size={16} /> New department
+          </Button>
+        )}
       </div>
 
       <div className="mt-4">
@@ -113,7 +118,7 @@ export function DepartmentsPage() {
                 <tr>
                   <th className="px-4 py-3">Name</th>
                   <th className="px-4 py-3">Description</th>
-                  <th className="px-4 py-3 text-right">Actions</th>
+                  {canManage && <th className="px-4 py-3 text-right">Actions</th>}
                 </tr>
               </thead>
               <tbody>
@@ -121,7 +126,7 @@ export function DepartmentsPage() {
                   <tr key={dept.departmentId} className="border-b border-gray-100 last:border-0">
                     <td className="px-4 py-3 font-medium text-gray-800">{dept.name}</td>
                     <td className="px-4 py-3 text-gray-500">{dept.description || '—'}</td>
-                    <td className="px-4 py-3">
+                    {canManage && <td className="px-4 py-3">
                       <div className="flex justify-end gap-1">
                         <button
                           onClick={() => openEditForm(dept)}
@@ -133,12 +138,12 @@ export function DepartmentsPage() {
                         <button
                           onClick={() => setDeleting(dept)}
                           aria-label={`Delete ${dept.name}`}
-                          className="rounded-md p-1.5 text-gray-500 hover:bg-red-50 hover:text-red-600"
+                          className="rounded-md p-1.5 text-rose-700 hover:bg-rose-50 hover:text-rose-800"
                         >
                           <Trash2 size={16} />
                         </button>
                       </div>
-                    </td>
+                    </td>}
                   </tr>
                 ))}
               </tbody>
@@ -147,7 +152,7 @@ export function DepartmentsPage() {
         )}
       </div>
 
-      <Modal isOpen={isFormOpen} onClose={closeForm} title={editing ? 'Edit department' : 'New department'}>
+      <Modal isOpen={canManage && isFormOpen} onClose={closeForm} title={editing ? 'Edit department' : 'New department'}>
         <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
           <Input label="Name" {...register('name')} error={errors.name?.message} />
           <Input label="Description" {...register('description')} error={errors.description?.message} />
@@ -163,7 +168,7 @@ export function DepartmentsPage() {
       </Modal>
 
       <ConfirmDialog
-        isOpen={deleting !== null}
+        isOpen={canManage && deleting !== null}
         title="Delete department"
         message={`Are you sure you want to delete "${deleting?.name}"? This cannot be undone.`}
         isLoading={deleteMutation.isPending}

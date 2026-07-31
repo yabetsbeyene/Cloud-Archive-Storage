@@ -97,6 +97,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const logout = () => {
     void keycloak.logout({ redirectUri: window.location.origin })
   }
+  const refreshUser = async () => {
+    await keycloak.updateToken(-1)
+    setToken(keycloak.token)
+    setUser(buildUserFromToken())
+  }
   const hasRole = (role: Role) => user?.roles.includes(role) ?? false
 
   return (
@@ -110,6 +115,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         hasRole,
         login,
         logout,
+        refreshUser,
       }}
     >
       {children}

@@ -3,17 +3,26 @@ package com.digitalarchive.service;
 import com.digitalarchive.domain.entity.Category;
 import com.digitalarchive.domain.entity.Department;
 import com.digitalarchive.domain.entity.Document;
+import com.digitalarchive.domain.entity.DocumentWorkflowHistory;
+import com.digitalarchive.domain.entity.AppUser;
 import com.digitalarchive.domain.enums.AuditAction;
 import com.digitalarchive.domain.enums.ClassificationLevel;
 import com.digitalarchive.domain.enums.DocumentStatus;
 import com.digitalarchive.domain.enums.ResourceType;
 import com.digitalarchive.dto.CreateDocumentRequest;
+import com.digitalarchive.dto.DocumentResponse;
 import com.digitalarchive.dto.UpdateDocumentRequest;
+import com.digitalarchive.exception.ResourceNotFoundException;
+import com.digitalarchive.mapper.ApiResponseMapper;
 import com.digitalarchive.repository.CategoryRepository;
 import com.digitalarchive.repository.DepartmentRepository;
 import com.digitalarchive.repository.DocumentRepository;
+import com.digitalarchive.repository.DocumentWorkflowHistoryRepository;
+import com.digitalarchive.repository.AppUserRepository;
+import jakarta.persistence.EntityManager;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 import java.time.OffsetDateTime;
 import java.util.List;
@@ -26,12 +35,17 @@ import java.util.UUID;
  */
 @Service
 @RequiredArgsConstructor
+@Transactional(readOnly = true)
 public class DocumentService {
 
     private final DocumentRepository documentRepository;
+    private final DocumentWorkflowHistoryRepository workflowHistoryRepository;
+    private final AppUserRepository appUserRepository;
     private final CategoryRepository categoryRepository;
     private final DepartmentRepository departmentRepository;
     private final AuditService auditService;
+    private final EntityManager entityManager;
+    private final ApiResponseMapper responseMapper;
 
     /**
      * Every new document starts as DRAFT and defaults to INTERNAL classification
@@ -41,12 +55,25 @@ public class DocumentService {
      * trigger (V6__create_triggers.sql) the moment the row is inserted. That's
      * why Document.referenceNumber is mapped insertable=false, updatable=false.
      */
-    public Document createDocument(CreateDocumentRequest request, UUID createdByUserSub) {
+    @Transactional
+    public DocumentResponse createDocument(
+            CreateDocumentRequest request,
+            UUID createdByUserSub,
+            boolean administrator) {
         Category category = categoryRepository.findById(request.getCategoryId())
-                .orElseThrow(() -> new IllegalArgumentException("Category not found: " + request.getCategoryId()));
+                .filter(existing -> existing.getDeletedAt() == null)
+                .orElseThrow(() -> new ResourceNotFoundException("Category not found: " + request.getCategoryId()));
 
         Department department = departmentRepository.findById(request.getDepartmentId())
-                .orElseThrow(() -> new IllegalArgumentException("Department not found: " + request.getDepartmentId()));
+                .filter(existing -> existing.getDeletedAt() == null)
+                .orElseThrow(() -> new ResourceNotFoundException("Department not found: " + request.getDepartmentId()));
+
+        DocumentStatus initialStatus = administrator
+                ? DocumentStatus.ARCHIVED
+                : DocumentStatus.SUBMITTED;
+        AppUser uploader = appUserRepository.findById(createdByUserSub)
+                .orElseThrow(() -> new ResourceNotFoundException(
+                        "Uploader profile not found: " + createdByUserSub));
 
         Document document = Document.builder()
                 .title(request.getTitle())
@@ -56,45 +83,82 @@ public class DocumentService {
                 .classification(request.getClassification() != null
                         ? request.getClassification()
                         : ClassificationLevel.INTERNAL)
-                .status(DocumentStatus.DRAFT)
+                .status(initialStatus)
+                .archivedAt(administrator ? OffsetDateTime.now() : null)
                 .createdBy(createdByUserSub)
+                .uploaderUsername(uploader.getUsername())
+                .uploaderFullName(uploader.getFullName())
+                .uploaderEmail(uploader.getEmail())
+                .uploaderDepartmentId(
+                        uploader.getDepartment() == null
+                                ? null
+                                : uploader.getDepartment().getDepartmentId())
+                .uploaderDepartmentName(
+                        uploader.getDepartment() == null
+                                ? null
+                                : uploader.getDepartment().getName())
                 .build();
 
-        Document saved = documentRepository.save(document);
+        Document saved = documentRepository.saveAndFlush(document);
 
-        // The trigger sets reference_number on INSERT, but the entity we just
-        // built in memory doesn't know that yet — re-fetch to get the real value.
-        Document reloaded = documentRepository.findById(saved.getDocumentId()).orElseThrow();
+        // The trigger sets reference_number on INSERT, so refresh the managed
+        // entity after flushing to load the generated value.
+        entityManager.refresh(saved);
+
+        workflowHistoryRepository.save(DocumentWorkflowHistory.builder()
+                .document(saved)
+                .fromStatus(null)
+                .toStatus(initialStatus)
+                .comment(administrator
+                        ? "Automatically archived because the creator is an administrator"
+                        : "Automatically submitted for review")
+                .changedBy(createdByUserSub)
+                .build());
 
         auditService.log(createdByUserSub, AuditAction.CREATE, ResourceType.DOCUMENT,
-                reloaded.getDocumentId(), "Created document: " + reloaded.getTitle());
+                saved.getDocumentId(), "Created document: " + saved.getTitle()
+                        + " with status " + initialStatus);
 
-        return reloaded;
+        return responseMapper.toDocumentResponse(saved);
     }
 
-    public List<Document> listActiveDocuments() {
+    public List<DocumentResponse> listActiveDocuments() {
         return documentRepository.findAll().stream()
                 .filter(d -> d.getDeletedAt() == null)
+                .map(responseMapper::toDocumentResponse)
                 .toList();
     }
 
-    public Optional<Document> getActiveById(UUID id) {
-        return documentRepository.findById(id)
-                .filter(d -> d.getDeletedAt() == null);
+    public List<DocumentResponse> listReviewQueue() {
+        return documentRepository
+                .findByStatusInAndDeletedAtIsNullOrderByCreatedAtDesc(
+                        List.of(
+                                DocumentStatus.SUBMITTED,
+                                DocumentStatus.UNDER_REVIEW,
+                                DocumentStatus.APPROVED))
+                .stream()
+                .map(responseMapper::toDocumentResponse)
+                .toList();
+    }
+
+    public Optional<DocumentResponse> getActiveById(UUID id) {
+        return findActiveEntity(id).map(responseMapper::toDocumentResponse);
     }
 
     /**
      * Backs the full-text search endpoint. Delegates straight to the
      * tsvector-based native query already defined on DocumentRepository.
      */
-    public List<Document> searchDocuments(String searchTerm) {
+    public List<DocumentResponse> searchDocuments(String searchTerm) {
         return documentRepository.searchByTitleOrDescription(searchTerm).stream()
                 .filter(d -> d.getDeletedAt() == null)
+                .map(responseMapper::toDocumentResponse)
                 .toList();
     }
 
-    public Optional<Document> updateDocument(UUID id, UpdateDocumentRequest request, UUID updatedByUserSub) {
-        return getActiveById(id).map(existing -> {
+    @Transactional
+    public Optional<DocumentResponse> updateDocument(UUID id, UpdateDocumentRequest request, UUID updatedByUserSub) {
+        return findActiveEntity(id).map(existing -> {
             if (request.getTitle() != null) {
                 existing.setTitle(request.getTitle());
             }
@@ -106,8 +170,9 @@ public class DocumentService {
             }
             if (request.getCategoryId() != null) {
                 Category category = categoryRepository.findById(request.getCategoryId())
+                        .filter(candidate -> candidate.getDeletedAt() == null)
                         .orElseThrow(
-                                () -> new IllegalArgumentException("Category not found: " + request.getCategoryId()));
+                                () -> new ResourceNotFoundException("Category not found: " + request.getCategoryId()));
                 existing.setCategory(category);
             }
             existing.setUpdatedBy(updatedByUserSub);
@@ -116,7 +181,7 @@ public class DocumentService {
             auditService.log(updatedByUserSub, AuditAction.UPDATE, ResourceType.DOCUMENT,
                     saved.getDocumentId(), "Updated document: " + saved.getTitle());
 
-            return saved;
+            return responseMapper.toDocumentResponse(saved);
         });
     }
 
@@ -126,8 +191,9 @@ public class DocumentService {
      * Rows are never physically removed; deleted_at != null means "hidden from
      * normal views".
      */
+    @Transactional
     public boolean softDelete(UUID id, UUID deletedByUserSub) {
-        return getActiveById(id).map(existing -> {
+        return findActiveEntity(id).map(existing -> {
             existing.setDeletedAt(OffsetDateTime.now());
             existing.setDeletedBy(deletedByUserSub);
             documentRepository.save(existing);
@@ -137,5 +203,10 @@ public class DocumentService {
 
             return true;
         }).orElse(false);
+    }
+
+    private Optional<Document> findActiveEntity(UUID id) {
+        return documentRepository.findById(id)
+                .filter(document -> document.getDeletedAt() == null);
     }
 }

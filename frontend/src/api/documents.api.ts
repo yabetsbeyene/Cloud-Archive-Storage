@@ -3,6 +3,7 @@ import type { Document, CreateDocumentInput, UpdateDocumentInput } from '@/types
 
 export const documentsApi = {
   list: () => api.get<Document[]>('/documents').then((r) => r.data),
+  reviewQueue: () => api.get<Document[]>('/documents/review-queue').then((r) => r.data),
   get: (id: string) => api.get<Document>(`/documents/${id}`).then((r) => r.data),
   search: (query: string) =>
     api.get<Document[]>('/documents/search', { params: { q: query } }).then((r) => r.data),
