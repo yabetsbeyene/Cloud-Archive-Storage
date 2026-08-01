@@ -1,45 +1,71 @@
-# Digital Archive & Records Management System
+# Digital Archive
 
-Full-stack archive system built with React, Spring Boot, PostgreSQL, and
-Keycloak.
+A full-stack document and records management system built with React, Spring
+Boot, PostgreSQL, and Keycloak.
 
-## Local deployment
+## What is implemented
 
-The complete application runs locally with Docker Compose:
+- Keycloak login and role-based access control
+- Role-specific dashboards and review queues
+- Document creation, search, filtering, editing, and soft deletion
+- File version upload and secure download
+- Document workflow and history:
+  `SUBMITTED → UNDER_REVIEW → APPROVED → ARCHIVED`
+- Administrator-created documents are archived automatically
+- Category and department management restricted to administrators
+- User creation, role assignment, department assignment, and deactivation
+- Automatic synchronization between Keycloak and application users
+- Uploader name, email, and department snapshots on documents
+- Document notes, workflow-history, audit-log, and dashboard APIs
+- Audit log with actor, department, resource, category, action, and details
+- Per-account light, dark, and system theme preferences
+- Account profile and password settings
+- Database migrations, transaction boundaries, DTO responses, and consistent
+  API errors
 
-- React frontend served by Nginx
-- Spring Boot API
-- Keycloak
-- Application PostgreSQL database
-- Keycloak PostgreSQL database
-- Persistent Docker volumes for databases and uploaded documents
+## Technology
 
-### Requirements
+- Frontend: React 19, TypeScript, Vite, Tailwind CSS, TanStack Query
+- Backend: Java 21, Spring Boot 3, Spring Security, Spring Data JPA
+- Authentication: Keycloak
+- Databases: PostgreSQL 16
+- Local deployment: Docker Compose and Nginx
+
+## Run locally
+
+Requirements:
 
 - Docker Desktop
 - At least 4 GB of memory available to Docker
 
-### Start everything
-
-From the repository root:
+From the project root, run:
 
 ```powershell
-docker compose up --build -d
+docker compose up -d --build
 ```
 
-The first build can take several minutes because Docker downloads the Java,
-Node, Nginx, Keycloak, and PostgreSQL images.
+The first build may take several minutes. Open the complete application at:
 
-Open the complete stack through one address:
+```text
+http://localhost:5173
+```
 
-- Application: `http://localhost:5173`
-- API health: `http://localhost:5173/actuator/health`
-- Keycloak: `http://localhost:5173/auth`
-- Keycloak readiness: `http://localhost:5173/auth/health/ready`
+The frontend, backend API, and Keycloak are all available through this address.
 
-### Initial Keycloak administration
+## Demo accounts
 
-Open `http://localhost:5173/auth/admin` and sign in with:
+| Account | Password | Role |
+|---|---|---|
+| `admin.user` | `password123` | `ADMIN` |
+| `dept.user` | `password123` | `DEPT_USER` |
+
+Keycloak administration is available at:
+
+```text
+http://localhost:5173/auth/admin
+```
+
+Local Keycloak administrator:
 
 ```text
 Username: admin
@@ -48,73 +74,76 @@ Password: admin
 
 These credentials are for local development only.
 
-The `digital-archive` realm and `archive-frontend` client are imported
-automatically. Two local development users are included:
+## Roles
 
-```text
-admin.user / password123
-dept.user / password123
-```
+- `ADMIN` — system administration and full document access
+- `ARCHIVIST` — archive and audit responsibilities
+- `MANAGER` — document review, approval, and rejection
+- `DEPT_USER` — department document creation and editing
+- `VIEWER` — read-only access
 
-They have the `ADMIN` and `DEPT_USER` roles respectively. You can also create
-users in the `digital-archive` realm and assign one or more roles:
+Non-administrator documents are submitted for review automatically.
+Administrators can start review, managers can approve or reject, and
+administrators or archivists can archive approved documents.
 
-- `ADMIN`
-- `ARCHIVIST`
-- `MANAGER`
-- `DEPT_USER`
-- `VIEWER`
-
-### Check status and logs
+## Useful commands
 
 ```powershell
+# Show running services
 docker compose ps
-docker compose logs -f keycloak
+
+# Follow backend logs
 docker compose logs -f backend
-```
 
-### Stop the application
+# Follow Keycloak logs
+docker compose logs -f keycloak
 
-```powershell
+# Stop the application while keeping its data
 docker compose down
 ```
 
-Data remains in Docker volumes after stopping.
-
-To completely reset all local databases, users, and uploaded files:
+To permanently delete the local databases, users, and uploaded files:
 
 ```powershell
 docker compose down -v
 ```
 
-The reset command permanently deletes the local Docker volumes.
+Use the last command carefully because Docker volumes cannot be recovered after
+they are removed.
 
-## Local ports
+## Data storage
 
-| Component | Host port |
-|---|---:|
-| Frontend | 5173 |
-| Application PostgreSQL | 5533 |
+PostgreSQL data and uploaded files are stored in persistent Docker volumes.
+Uploaded document versions are stored in:
 
-The API, Keycloak, and Keycloak PostgreSQL database are intentionally available
-only through the internal Docker network. Nginx exposes the UI, API, and
-authentication server together on port `5173`.
-
-## Development without containerizing the frontend
-
-You can still run the frontend development server:
-
-```powershell
-cd frontend
-Copy-Item .env.example .env
-npm install
-npm run dev
+```text
+Container path: /app/storage
+Docker volume: insaprojectcleaned_archive_file_storage
 ```
 
-Start only the supporting services with:
+Archiving changes the document status and archive timestamp. It does not move or
+delete the uploaded file.
 
-```powershell
-docker compose up -d postgres-app postgres-keycloak keycloak
+## Project structure
+
+```text
+.
+├── backend/
+│   ├── keycloak/       Keycloak image and realm configuration
+│   └── src/            Spring Boot source and database migrations
+├── frontend/
+│   ├── public/         Static authentication files
+│   └── src/            React application
+└── docker-compose.yml  Complete local stack
 ```
 
-Then run the backend with Maven using the application database on port `5533`.
+## Local services
+
+| Service | Address |
+|---|---|
+| Application | `http://localhost:5173` |
+| Backend health | `http://localhost:5173/actuator/health` |
+| Keycloak | `http://localhost:5173/auth` |
+| Application PostgreSQL | `localhost:5533` |
+
+The backend and Keycloak databases are not intended to be exposed publicly.
