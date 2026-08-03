@@ -18,6 +18,7 @@ FROM quay.io/keycloak/keycloak:26.6.0
 
 COPY --from=builder /opt/keycloak/ /opt/keycloak/
 COPY --chown=1000:0 realm-export.json /opt/keycloak/data/import/realm-export.template
+COPY --chown=1000:0 themes/archive-invitation /opt/keycloak/themes/archive-invitation
 COPY --from=scripts --chown=1000:0 /tmp/deployment-entrypoint.sh /opt/keycloak/bin/deployment-entrypoint.sh
 
 ENV KC_DB=postgres

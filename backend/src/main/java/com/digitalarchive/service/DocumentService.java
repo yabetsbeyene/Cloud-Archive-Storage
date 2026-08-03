@@ -23,6 +23,7 @@ import jakarta.persistence.EntityManager;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.security.oauth2.jwt.Jwt;
 
 import java.time.OffsetDateTime;
 import java.util.List;
@@ -46,6 +47,7 @@ public class DocumentService {
     private final AuditService auditService;
     private final EntityManager entityManager;
     private final ApiResponseMapper responseMapper;
+    private final DocumentAccessService documentAccessService;
 
     /**
      * Every new document starts as DRAFT and defaults to INTERNAL classification
@@ -122,14 +124,17 @@ public class DocumentService {
         return responseMapper.toDocumentResponse(saved);
     }
 
-    public List<DocumentResponse> listActiveDocuments() {
+    public List<DocumentResponse> listActiveDocuments(Jwt jwt) {
+        DocumentAccessService.AccessContext access = documentAccessService.context(jwt);
         return documentRepository.findAll().stream()
                 .filter(d -> d.getDeletedAt() == null)
+                .filter(d -> documentAccessService.canRead(d, access))
                 .map(responseMapper::toDocumentResponse)
                 .toList();
     }
 
-    public List<DocumentResponse> listReviewQueue() {
+    public List<DocumentResponse> listReviewQueue(Jwt jwt) {
+        DocumentAccessService.AccessContext access = documentAccessService.context(jwt);
         return documentRepository
                 .findByStatusInAndDeletedAtIsNullOrderByCreatedAtDesc(
                         List.of(
@@ -137,28 +142,41 @@ public class DocumentService {
                                 DocumentStatus.UNDER_REVIEW,
                                 DocumentStatus.APPROVED))
                 .stream()
+                .filter(d -> documentAccessService.canRead(d, access))
                 .map(responseMapper::toDocumentResponse)
                 .toList();
     }
 
-    public Optional<DocumentResponse> getActiveById(UUID id) {
-        return findActiveEntity(id).map(responseMapper::toDocumentResponse);
+    public Optional<DocumentResponse> getActiveById(UUID id, Jwt jwt) {
+        DocumentAccessService.AccessContext access = documentAccessService.context(jwt);
+        return findActiveEntity(id).map(document -> {
+            documentAccessService.requireRead(document, access);
+            return responseMapper.toDocumentResponse(document);
+        });
     }
 
     /**
      * Backs the full-text search endpoint. Delegates straight to the
      * tsvector-based native query already defined on DocumentRepository.
      */
-    public List<DocumentResponse> searchDocuments(String searchTerm) {
+    public List<DocumentResponse> searchDocuments(String searchTerm, Jwt jwt) {
+        DocumentAccessService.AccessContext access = documentAccessService.context(jwt);
         return documentRepository.searchByTitleOrDescription(searchTerm).stream()
                 .filter(d -> d.getDeletedAt() == null)
+                .filter(d -> documentAccessService.canRead(d, access))
                 .map(responseMapper::toDocumentResponse)
                 .toList();
     }
 
     @Transactional
-    public Optional<DocumentResponse> updateDocument(UUID id, UpdateDocumentRequest request, UUID updatedByUserSub) {
+    public Optional<DocumentResponse> updateDocument(
+            UUID id,
+            UpdateDocumentRequest request,
+            UUID updatedByUserSub,
+            Jwt jwt) {
+        DocumentAccessService.AccessContext access = documentAccessService.context(jwt);
         return findActiveEntity(id).map(existing -> {
+            documentAccessService.requireWrite(existing, access);
             if (request.getTitle() != null) {
                 existing.setTitle(request.getTitle());
             }

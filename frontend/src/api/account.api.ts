@@ -15,4 +15,22 @@ export const accountApi = {
       .then((response) => response.data),
   changePassword: (input: ChangePasswordInput) =>
     api.put('/account/password', input).then(() => undefined),
+  updateProfilePicture: (file: File) => {
+    const form = new FormData()
+    form.append('file', file)
+    return api
+      .post<AccountProfile>('/account/profile-picture', form)
+      .then((response) => response.data)
+  },
+  removeProfilePicture: () =>
+    api
+      .delete<AccountProfile>('/account/profile-picture')
+      .then((response) => response.data),
+  getProfilePicture: (userSub?: string) =>
+    api
+      .get<Blob>(
+        userSub ? `/users/${userSub}/profile-picture` : '/account/profile-picture',
+        { responseType: 'blob' },
+      )
+      .then((response) => response.data),
 }

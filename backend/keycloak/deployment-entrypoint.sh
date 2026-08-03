@@ -33,6 +33,24 @@ if [[ -z "${KEYCLOAK_ADMIN_CLIENT_SECRET:-}" ]]; then
   exit 1
 fi
 
+if [[ -z "${SMTP_HOST:-}" || -z "${SMTP_PORT:-}" || -z "${SMTP_FROM:-}" ]]; then
+  echo "SMTP_HOST, SMTP_PORT, and SMTP_FROM must be configured" >&2
+  exit 1
+fi
+
+if [[ "${SMTP_AUTH:-false}" == "true" \
+    && ( -z "${SMTP_USER:-}" || -z "${SMTP_PASSWORD:-}" ) ]]; then
+  echo "SMTP_USER and SMTP_PASSWORD are required when SMTP_AUTH=true" >&2
+  exit 1
+fi
+
+export SMTP_FROM_DISPLAY_NAME="${SMTP_FROM_DISPLAY_NAME:-Digital Archive}"
+export SMTP_AUTH="${SMTP_AUTH:-false}"
+export SMTP_STARTTLS="${SMTP_STARTTLS:-false}"
+export SMTP_SSL="${SMTP_SSL:-false}"
+export SMTP_USER="${SMTP_USER:-}"
+export SMTP_PASSWORD="${SMTP_PASSWORD:-}"
+
 frontend_url="${FRONTEND_URL%/}"
 realm_template="/opt/keycloak/data/import/realm-export.template"
 realm_file="/opt/keycloak/data/import/realm-export.json"

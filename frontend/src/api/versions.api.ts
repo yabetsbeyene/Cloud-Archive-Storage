@@ -35,4 +35,19 @@ export const versionsApi = {
     link.remove()
     window.URL.revokeObjectURL(url)
   },
+
+  preview: async (documentId: string, versionId: string) => {
+    const response = await api.get<Blob>(
+      `/documents/${documentId}/versions/${versionId}/preview`,
+      { responseType: 'blob' },
+    )
+    const contentTypeHeader = response.headers['content-type']
+    const mimeType = typeof contentTypeHeader === 'string'
+      ? contentTypeHeader
+      : response.data.type || 'application/octet-stream'
+    return {
+      url: window.URL.createObjectURL(new Blob([response.data], { type: mimeType })),
+      mimeType,
+    }
+  },
 }

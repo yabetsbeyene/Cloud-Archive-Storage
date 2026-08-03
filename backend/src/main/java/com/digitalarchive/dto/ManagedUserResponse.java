@@ -14,5 +14,6 @@ public record ManagedUserResponse(
         DepartmentSummaryResponse department,
         boolean isActive,
         OffsetDateTime createdAt,
-        OffsetDateTime updatedAt) {
+        OffsetDateTime updatedAt,
+        OffsetDateTime profilePictureUpdatedAt) {
 }

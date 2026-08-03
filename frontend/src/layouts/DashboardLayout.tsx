@@ -27,7 +27,7 @@ export function DashboardLayout() {
       <Sidebar isOpen={isNavigationOpen} onClose={() => setIsNavigationOpen(false)} />
       <div className="flex min-w-0 flex-1 flex-col overflow-hidden">
         <Navbar onOpenMenu={() => setIsNavigationOpen(true)} />
-        <main id="main-content" className="flex-1 overflow-y-auto p-4 sm:p-6" tabIndex={-1}>
+        <main id="main-content" className="flex-1 scroll-smooth overflow-y-auto p-4 sm:p-6" tabIndex={-1}>
           <Outlet />
         </main>
       </div>

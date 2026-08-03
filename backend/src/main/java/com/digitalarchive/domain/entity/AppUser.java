@@ -44,6 +44,15 @@ public class AppUser {
     @Column(name = "theme_preference", nullable = false, length = 20)
     private ThemePreference themePreference;
 
+    @Column(name = "profile_picture_file_name", length = 500)
+    private String profilePictureFileName;
+
+    @Column(name = "profile_picture_mime_type", length = 100)
+    private String profilePictureMimeType;
+
+    @Column(name = "profile_picture_updated_at")
+    private OffsetDateTime profilePictureUpdatedAt;
+
     @Column(name = "created_at", insertable = false, updatable = false)
     private OffsetDateTime createdAt;
 

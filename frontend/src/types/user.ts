@@ -13,12 +13,14 @@ export interface AppUser {
 }
 
 export interface AccountProfile {
+  userSub: string
   username: string
   fullName: string
   email: string
   role: Role
   department: DepartmentSummary | null
   themePreference: 'LIGHT' | 'DARK' | 'SYSTEM'
+  profilePictureUpdatedAt: string | null
 }
 
 export interface UpdateAccountProfileInput {
@@ -42,6 +44,7 @@ export interface ManagedUser {
   isActive: boolean
   createdAt: string | null
   updatedAt: string | null
+  profilePictureUpdatedAt: string | null
 }
 
 export interface CreateUserInput {
@@ -51,7 +54,6 @@ export interface CreateUserInput {
   temporaryPassword: string
   role: Role
   departmentId?: string
-  isActive?: boolean
 }
 
 export interface UpdateUserInput {

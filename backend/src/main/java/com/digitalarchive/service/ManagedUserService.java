@@ -35,6 +35,7 @@ public class ManagedUserService {
     private final DepartmentRepository departmentRepository;
     private final AuditService auditService;
     private final EntityManager entityManager;
+    private final FileStorageService fileStorageService;
 
     @Transactional(readOnly = true)
     public List<ManagedUserResponse> list() {
@@ -55,29 +56,32 @@ public class ManagedUserService {
 
     @Transactional
     public ManagedUserResponse create(CreateManagedUserRequest request, UUID actorId) {
-        boolean enabled = request.isActive() == null || request.isActive();
+        Department department = resolveDepartment(request.departmentId());
         KeycloakAdminService.KeycloakUser identity = keycloakAdminService.createUser(
                 request.username(),
                 request.fullName(),
                 request.email(),
                 request.temporaryPassword(),
                 request.role(),
-                enabled);
+                department == null ? null : department.getName(),
+                true);
         try {
             AppUser profile = AppUser.builder()
                     .userSub(identity.id())
                     .username(identity.username())
                     .fullName(identity.fullName())
                     .email(identity.email())
-                    .department(resolveDepartment(request.departmentId()))
-                    .isActive(enabled)
+                    .department(department)
+                    .isActive(true)
                     .themePreference(ThemePreference.SYSTEM)
                     .build();
             AppUser saved = appUserRepository.saveAndFlush(profile);
             entityManager.refresh(saved);
             auditService.log(actorId, AuditAction.CREATE, ResourceType.USER,
                     saved.getUserSub(), "Created user " + identity.username()
-                            + " with role " + request.role().name());
+                            + " with role " + request.role().name()
+                            + " and sent a password setup invitation to " + identity.email());
+            keycloakAdminService.sendInvitationEmail(identity.id());
             return toResponse(identity, saved);
         } catch (RuntimeException exception) {
             keycloakAdminService.deleteUser(identity.id());
@@ -96,11 +100,13 @@ public class ManagedUserService {
                     "You cannot remove your own administrator role or deactivate your own account");
         }
 
+        Department department = resolveDepartment(request.departmentId());
         KeycloakAdminService.KeycloakUser identity = keycloakAdminService.updateUser(
                 userId,
                 request.fullName(),
                 request.email(),
                 request.role(),
+                department == null ? null : department.getName(),
                 request.isActive());
 
         AppUser profile = appUserRepository.findById(userId)
@@ -112,7 +118,7 @@ public class ManagedUserService {
         profile.setUsername(identity.username());
         profile.setFullName(identity.fullName());
         profile.setEmail(identity.email());
-        profile.setDepartment(resolveDepartment(request.departmentId()));
+        profile.setDepartment(department);
         profile.setIsActive(request.isActive());
         profile.setDeletedAt(request.isActive() ? null : OffsetDateTime.now());
         profile.setDeletedBy(request.isActive() ? null : actorId);
@@ -145,6 +151,38 @@ public class ManagedUserService {
         }
     }
 
+    @Transactional
+    public void deletePermanently(UUID userId, UUID actorId) {
+        if (userId.equals(actorId)) {
+            throw new IllegalArgumentException("You cannot permanently delete your own account");
+        }
+
+        KeycloakAdminService.KeycloakUser identity = keycloakAdminService.getUser(userId);
+        AppUser profile = appUserRepository.findById(userId)
+                .orElseThrow(() -> new ResourceNotFoundException(
+                        "Application user profile not found: " + userId));
+
+        String deletedIdentity = "deleted-" + userId;
+        profile.setUsername(deletedIdentity);
+        profile.setFullName("Deleted user");
+        profile.setEmail(deletedIdentity + "@deleted.invalid");
+        profile.setDepartment(null);
+        fileStorageService.delete(profile.getProfilePictureFileName());
+        profile.setProfilePictureFileName(null);
+        profile.setProfilePictureMimeType(null);
+        profile.setProfilePictureUpdatedAt(null);
+        profile.setIsActive(false);
+        profile.setDeletedAt(OffsetDateTime.now());
+        profile.setDeletedBy(actorId);
+        appUserRepository.save(profile);
+
+        auditService.log(actorId, AuditAction.DELETE, ResourceType.USER,
+                userId, "Permanently deleted account " + identity.username()
+                        + "; historical records retain an anonymized user reference");
+
+        keycloakAdminService.deleteUser(userId);
+    }
+
     private Department resolveDepartment(UUID departmentId) {
         if (departmentId == null) {
             return null;
@@ -170,6 +208,7 @@ public class ManagedUserService {
                         : new DepartmentSummaryResponse(department.getDepartmentId(), department.getName()),
                 identity.enabled() && (profile == null || Boolean.TRUE.equals(profile.getIsActive())),
                 profile == null ? null : profile.getCreatedAt(),
-                profile == null ? null : profile.getUpdatedAt());
+                profile == null ? null : profile.getUpdatedAt(),
+                profile == null ? null : profile.getProfilePictureUpdatedAt());
     }
 }

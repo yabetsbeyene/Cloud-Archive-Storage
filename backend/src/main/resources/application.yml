@@ -47,3 +47,6 @@ app:
     realm: ${KEYCLOAK_ADMIN_REALM:digital-archive}
     client-id: ${KEYCLOAK_ADMIN_CLIENT_ID:archive-backend-admin}
     client-secret: ${KEYCLOAK_ADMIN_CLIENT_SECRET:}
+    frontend-client-id: ${KEYCLOAK_FRONTEND_CLIENT_ID:archive-frontend}
+    frontend-url: ${FRONTEND_URL:http://localhost:5173}
+    invitation-lifespan-seconds: ${INVITATION_LIFESPAN_SECONDS:43200}

@@ -21,6 +21,8 @@ import java.nio.charset.StandardCharsets;
 import java.util.List;
 import java.util.UUID;
 
+import static org.springframework.http.HttpStatus.UNSUPPORTED_MEDIA_TYPE;
+
 @RestController
 @RequiredArgsConstructor
 @RequestMapping("/api/documents/{documentId}/versions")
@@ -30,8 +32,11 @@ public class DocumentVersionController {
         private final FileStorageService fileStorageService;
 
         @GetMapping
-        public List<DocumentVersionResponse> listVersions(@PathVariable UUID documentId) {
-                return documentVersionService.listVersions(documentId);
+        @PreAuthorize("hasAnyRole('ADMIN', 'ARCHIVIST', 'MANAGER', 'DEPT_USER', 'VIEWER')")
+        public List<DocumentVersionResponse> listVersions(
+                        @PathVariable UUID documentId,
+                        @AuthenticationPrincipal Jwt jwt) {
+                return documentVersionService.listVersions(documentId, jwt);
         }
 
         @PostMapping
@@ -39,17 +44,17 @@ public class DocumentVersionController {
         public ResponseEntity<DocumentVersionResponse> upload(@PathVariable UUID documentId,
                         @RequestParam("file") MultipartFile file,
                         @AuthenticationPrincipal Jwt jwt) {
-                UUID actorId = UUID.fromString(jwt.getSubject());
-                DocumentVersionResponse saved = documentVersionService.upload(documentId, file, actorId);
+                DocumentVersionResponse saved = documentVersionService.upload(documentId, file, jwt);
                 return ResponseEntity.ok(saved);
         }
 
         @GetMapping("/{versionId}/download")
+        @PreAuthorize("hasAnyRole('ADMIN', 'ARCHIVIST', 'MANAGER', 'DEPT_USER', 'VIEWER')")
         public ResponseEntity<Resource> download(@PathVariable UUID documentId,
                         @PathVariable UUID versionId,
                         @AuthenticationPrincipal Jwt jwt) {
                 DocumentVersionService.DownloadInfo download =
-                                documentVersionService.getDownloadInfo(documentId, versionId);
+                                documentVersionService.getDownloadInfo(documentId, versionId, jwt);
 
                 try {
                         Resource resource = new UrlResource(
@@ -72,6 +77,44 @@ public class DocumentVersionController {
                         return ResponseEntity.ok()
                                         .header(HttpHeaders.CONTENT_DISPOSITION, contentDisposition)
                                         .header(HttpHeaders.CONTENT_TYPE, contentType)
+                                        .body(resource);
+                } catch (MalformedURLException e) {
+                        throw new RuntimeException(e);
+                }
+        }
+
+        @GetMapping("/{versionId}/preview")
+        @PreAuthorize("hasAnyRole('ADMIN', 'ARCHIVIST', 'MANAGER', 'DEPT_USER', 'VIEWER')")
+        public ResponseEntity<Resource> preview(@PathVariable UUID documentId,
+                        @PathVariable UUID versionId,
+                        @AuthenticationPrincipal Jwt jwt) {
+                DocumentVersionService.DownloadInfo preview =
+                                documentVersionService.getDownloadInfo(documentId, versionId, jwt);
+                if (!documentVersionService.isPreviewable(preview.mimeType())) {
+                        throw new org.springframework.web.server.ResponseStatusException(
+                                        UNSUPPORTED_MEDIA_TYPE,
+                                        "Preview is available for PDF, image, and plain-text files");
+                }
+
+                try {
+                        Resource resource = new UrlResource(
+                                        fileStorageService.resolve(preview.storedFileName()).toUri());
+                        if (!resource.exists()) {
+                                return ResponseEntity.notFound().build();
+                        }
+
+                        documentVersionService.recordPreview(
+                                        preview, documentId, UUID.fromString(jwt.getSubject()));
+
+                        String contentDisposition = ContentDisposition.inline()
+                                        .filename(preview.originalFileName(), StandardCharsets.UTF_8)
+                                        .build()
+                                        .toString();
+
+                        return ResponseEntity.ok()
+                                        .header(HttpHeaders.CONTENT_DISPOSITION, contentDisposition)
+                                        .header(HttpHeaders.CONTENT_TYPE, preview.mimeType())
+                                        .header("X-Content-Type-Options", "nosniff")
                                         .body(resource);
                 } catch (MalformedURLException e) {
                         throw new RuntimeException(e);

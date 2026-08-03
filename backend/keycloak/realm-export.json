@@ -4,6 +4,19 @@
   "sslRequired": "external",
   "registrationAllowed": false,
   "editUsernameAllowed": true,
+  "passwordPolicy": "length(14) and digits(1) and lowerCase(1) and upperCase(1) and specialChars(1) and notUsername and notEmail and passwordHistory(5)",
+  "emailTheme": "archive-invitation",
+  "smtpServer": {
+    "host": "${SMTP_HOST}",
+    "port": "${SMTP_PORT}",
+    "from": "${SMTP_FROM}",
+    "fromDisplayName": "${SMTP_FROM_DISPLAY_NAME}",
+    "auth": "${SMTP_AUTH}",
+    "starttls": "${SMTP_STARTTLS}",
+    "ssl": "${SMTP_SSL}",
+    "user": "${SMTP_USER}",
+    "password": "${SMTP_PASSWORD}"
+  },
   "roles": {
     "realm": [
       { "name": "ADMIN", "description": "Full system access" },
@@ -40,6 +53,20 @@
       "serviceAccountsEnabled": true
     }
   ],
+  "components": {
+    "org.keycloak.userprofile.UserProfileProvider": [
+      {
+        "name": "declarative-user-profile",
+        "providerId": "declarative-user-profile",
+        "subType": "declarative-user-profile",
+        "config": {
+          "kc.user.profile.config": [
+            "{\"attributes\":[{\"name\":\"username\",\"displayName\":\"Username\",\"validations\":{\"length\":{\"min\":3,\"max\":255},\"username-prohibited-characters\":{},\"up-username-not-idn-homograph\":{}},\"permissions\":{\"view\":[\"admin\",\"user\"],\"edit\":[\"admin\",\"user\"]},\"multivalued\":false},{\"name\":\"email\",\"displayName\":\"Email\",\"validations\":{\"email\":{},\"length\":{\"max\":255}},\"required\":{\"roles\":[\"user\"]},\"permissions\":{\"view\":[\"admin\",\"user\"],\"edit\":[\"admin\",\"user\"]},\"multivalued\":false},{\"name\":\"firstName\",\"displayName\":\"First name\",\"validations\":{\"length\":{\"max\":255},\"person-name-prohibited-characters\":{}},\"required\":{\"roles\":[\"user\"]},\"permissions\":{\"view\":[\"admin\",\"user\"],\"edit\":[\"admin\",\"user\"]},\"multivalued\":false},{\"name\":\"lastName\",\"displayName\":\"Last name\",\"validations\":{\"length\":{\"max\":255},\"person-name-prohibited-characters\":{}},\"required\":{\"roles\":[\"user\"]},\"permissions\":{\"view\":[\"admin\",\"user\"],\"edit\":[\"admin\",\"user\"]},\"multivalued\":false},{\"name\":\"applicationRole\",\"displayName\":\"Application role\",\"permissions\":{\"view\":[\"admin\",\"user\"],\"edit\":[\"admin\"]},\"multivalued\":false},{\"name\":\"applicationDepartment\",\"displayName\":\"Application department\",\"permissions\":{\"view\":[\"admin\",\"user\"],\"edit\":[\"admin\"]},\"multivalued\":false}],\"groups\":[{\"name\":\"user-metadata\",\"displayHeader\":\"User metadata\",\"displayDescription\":\"Attributes, which refer to user metadata\"}]}"
+          ]
+        }
+      }
+    ]
+  },
   "users": [
     {
       "username": "service-account-archive-backend-admin",
@@ -64,7 +91,7 @@
       "credentials": [
         {
           "type": "password",
-          "value": "password123",
+          "value": "ArchiveAdmin123!",
           "temporary": false
         }
       ],
@@ -80,7 +107,7 @@
       "credentials": [
         {
           "type": "password",
-          "value": "password123",
+          "value": "ArchiveDept123!",
           "temporary": false
         }
       ],

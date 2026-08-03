@@ -1,6 +1,6 @@
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { useQuery } from '@tanstack/react-query'
-import { ArrowLeft, Download, FileText, History, RotateCw, UserRound } from 'lucide-react'
+import { ArrowLeft, Download, Eye, FileText, History, RotateCw, UserRound } from 'lucide-react'
 import { Link, useParams } from 'react-router-dom'
 import { documentsApi } from '@/api/documents.api'
 import { versionsApi } from '@/api/versions.api'
@@ -10,12 +10,22 @@ import { DocumentWorkflowActions } from '@/components/documents/DocumentWorkflow
 import { Button } from '@/components/ui/Button'
 import { DocumentStatusBadge } from '@/components/ui/DocumentStatusBadge'
 import { ErrorMessage } from '@/components/ui/ErrorMessage'
+import { Modal } from '@/components/ui/Modal'
 import { formatDateTime, formatFileSize } from '@/utils/format'
 import { documentStatusLabels } from '@/utils/document-status'
+
+interface PreviewState {
+  versionId: string
+  fileName: string
+  mimeType: string
+  url: string
+}
 
 export function DocumentDetailPage() {
   const { id = '' } = useParams()
   const [downloadError, setDownloadError] = useState('')
+  const [preview, setPreview] = useState<PreviewState | null>(null)
+  const [previewLoadingId, setPreviewLoadingId] = useState<string | null>(null)
   const documentQuery = useQuery({
     queryKey: ['document', id],
     queryFn: () => documentsApi.get(id),
@@ -31,6 +41,12 @@ export function DocumentDetailPage() {
     queryFn: () => workflowApi.history(id),
     enabled: Boolean(id),
   })
+
+  useEffect(() => {
+    return () => {
+      if (preview) window.URL.revokeObjectURL(preview.url)
+    }
+  }, [preview])
 
   if (documentQuery.isLoading) {
     return <DetailSkeleton />
@@ -54,6 +70,19 @@ export function DocumentDetailPage() {
       await versionsApi.download(id, versionId, fileName)
     } catch (error) {
       setDownloadError(getApiErrorMessage(error, 'The file could not be downloaded.'))
+    }
+  }
+
+  async function openPreview(versionId: string, fileName: string) {
+    try {
+      setDownloadError('')
+      setPreviewLoadingId(versionId)
+      const result = await versionsApi.preview(id, versionId)
+      setPreview({ versionId, fileName, mimeType: result.mimeType, url: result.url })
+    } catch (error) {
+      setDownloadError(getApiErrorMessage(error, 'The document preview could not be opened.'))
+    } finally {
+      setPreviewLoadingId(null)
     }
   }
 
@@ -128,9 +157,21 @@ export function DocumentDetailPage() {
               {versionsQuery.data?.map((version) => (
                 <div key={version.versionId} className="flex flex-col gap-3 px-5 py-4 sm:flex-row sm:items-center sm:justify-between">
                   <div className="min-w-0"><p className="truncate text-sm font-medium text-slate-900">Version {version.versionNumber} · {version.originalFileName}</p><p className="mt-1 text-xs text-slate-500">{formatFileSize(version.fileSize)} · {formatDateTime(version.uploadedAt)}</p></div>
-                  <Button variant="secondary" className="min-h-10 px-3" onClick={() => download(version.versionId, version.originalFileName)}>
-                    <Download size={15} aria-hidden="true" /> Download
-                  </Button>
+                  <div className="flex flex-wrap gap-2">
+                    <Button
+                      variant="secondary"
+                      className="min-h-10 px-3"
+                      onClick={() => openPreview(version.versionId, version.originalFileName)}
+                      disabled={!isPreviewable(version.mimeType) || previewLoadingId === version.versionId}
+                      title={isPreviewable(version.mimeType) ? 'Open this file in the archive' : 'Preview is available for PDF, image, and plain-text files'}
+                    >
+                      <Eye size={15} aria-hidden="true" />
+                      {previewLoadingId === version.versionId ? 'Openingâ€¦' : 'Open'}
+                    </Button>
+                    <Button variant="secondary" className="min-h-10 px-3" onClick={() => download(version.versionId, version.originalFileName)}>
+                      <Download size={15} aria-hidden="true" /> Download
+                    </Button>
+                  </div>
                 </div>
               ))}
             </div>
@@ -156,8 +197,61 @@ export function DocumentDetailPage() {
           </ol>
         </section>
       </div>
+
+      <Modal
+        isOpen={preview !== null}
+        onClose={() => setPreview(null)}
+        title="Document preview"
+        size="xl"
+      >
+        {preview && (
+          <div>
+            <div className="mb-3 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+              <div className="min-w-0">
+                <p className="break-words text-sm font-medium text-slate-900">{preview.fileName}</p>
+                <p className="mt-1 text-sm leading-6 text-slate-600">
+                  You are viewing the secured archive copy. Opening this version is recorded in the
+                  audit log.
+                </p>
+              </div>
+              <Button
+                variant="secondary"
+                className="shrink-0"
+                onClick={() => download(preview.versionId, preview.fileName)}
+              >
+                <Download size={16} aria-hidden="true" /> Download
+              </Button>
+            </div>
+            <div className="overflow-hidden rounded-xl border border-slate-200 bg-slate-100">
+              {preview.mimeType.startsWith('image/') ? (
+                <div className="grid min-h-[55svh] place-items-center p-4">
+                  <img
+                    src={preview.url}
+                    alt={`Preview of ${preview.fileName}`}
+                    className="max-h-[70svh] max-w-full object-contain"
+                  />
+                </div>
+              ) : (
+                <iframe
+                  src={preview.url}
+                  title={`Preview of ${preview.fileName}`}
+                  className="h-[70svh] w-full bg-white"
+                />
+              )}
+            </div>
+          </div>
+        )}
+      </Modal>
     </div>
   )
+}
+
+function isPreviewable(mimeType: string) {
+  const normalized = mimeType.split(';', 1)[0].trim().toLowerCase()
+  return normalized === 'application/pdf'
+    || normalized === 'text/plain'
+    || normalized === 'text/csv'
+    || ['image/gif', 'image/jpeg', 'image/png', 'image/webp'].includes(normalized)
 }
 
 function Metadata({ label, value }: { label: string; value: string }) {

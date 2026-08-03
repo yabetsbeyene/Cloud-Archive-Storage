@@ -9,4 +9,6 @@ export const usersApi = {
   update: (sub: string, input: UpdateUserInput) =>
     api.put<ManagedUser>(`/users/${sub}`, input).then((r) => r.data),
   remove: (sub: string) => api.delete(`/users/${sub}`).then(() => undefined),
+  deletePermanently: (sub: string) =>
+    api.delete(`/users/${sub}/permanent`).then(() => undefined),
 }

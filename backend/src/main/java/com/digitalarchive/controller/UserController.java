@@ -24,6 +24,7 @@ import org.springframework.web.bind.annotation.RestController;
 
 import java.util.List;
 import java.util.UUID;
+import org.springframework.core.io.Resource;
 
 @RestController
 @RequiredArgsConstructor
@@ -32,6 +33,7 @@ public class UserController {
 
     private final AppUserService appUserService;
     private final ManagedUserService managedUserService;
+    private final AccountController accountController;
 
     @GetMapping("/me")
     public ResponseEntity<AppUserResponse> getCurrentUser(@AuthenticationPrincipal Jwt jwt) {
@@ -50,6 +52,11 @@ public class UserController {
     @PreAuthorize("hasRole('ADMIN')")
     public ManagedUserResponse getBySub(@PathVariable UUID sub) {
         return managedUserService.get(sub);
+    }
+
+    @GetMapping("/{sub}/profile-picture")
+    public ResponseEntity<Resource> getProfilePicture(@PathVariable UUID sub) {
+        return accountController.profilePicture(sub);
     }
 
     @PostMapping
@@ -76,6 +83,15 @@ public class UserController {
             @PathVariable UUID sub,
             @AuthenticationPrincipal Jwt jwt) {
         managedUserService.deactivate(sub, actorId(jwt));
+        return ResponseEntity.noContent().build();
+    }
+
+    @DeleteMapping("/{sub}/permanent")
+    @PreAuthorize("hasRole('ADMIN')")
+    public ResponseEntity<Void> deletePermanently(
+            @PathVariable UUID sub,
+            @AuthenticationPrincipal Jwt jwt) {
+        managedUserService.deletePermanently(sub, actorId(jwt));
         return ResponseEntity.noContent().build();
     }
 

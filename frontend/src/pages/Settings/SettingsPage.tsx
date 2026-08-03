@@ -1,10 +1,11 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { z } from 'zod'
 import {
   CheckCircle2,
+  Camera,
   KeyRound,
   Monitor,
   Moon,
@@ -12,6 +13,7 @@ import {
   ShieldCheck,
   Sun,
   UserRound,
+  Trash2,
 } from 'lucide-react'
 import { accountApi } from '@/api/account.api'
 import { getApiErrorMessage } from '@/api/error-message'
@@ -24,6 +26,7 @@ import { Button } from '@/components/ui/Button'
 import { ErrorMessage } from '@/components/ui/ErrorMessage'
 import { Input } from '@/components/ui/Input'
 import { PageHeader } from '@/components/ui/PageHeader'
+import { ProfileAvatar } from '@/components/account/ProfileAvatar'
 
 const profileSchema = z.object({
   username: z
@@ -42,11 +45,12 @@ const passwordSchema = z
   .object({
     newPassword: z
       .string()
-      .min(12, 'Use at least 12 characters')
+      .min(14, 'Use at least 14 characters')
       .max(128)
       .regex(/[a-z]/, 'Include a lowercase letter')
       .regex(/[A-Z]/, 'Include an uppercase letter')
-      .regex(/[0-9]/, 'Include a number'),
+      .regex(/[0-9]/, 'Include a number')
+      .regex(/[^A-Za-z0-9\s]/, 'Include a special character'),
     confirmPassword: z.string().min(1, 'Confirm your new password'),
   })
   .refine((values) => values.newPassword === values.confirmPassword, {
@@ -97,6 +101,7 @@ export function SettingsPage() {
   const { preference, resolvedTheme, setPreference, isSaving: isThemeSaving, error: themeError } = useTheme()
   const [profileSaved, setProfileSaved] = useState(false)
   const [passwordSaved, setPasswordSaved] = useState(false)
+  const pictureInputRef = useRef<HTMLInputElement>(null)
 
   const profileQuery = useQuery({
     queryKey: ['account'],
@@ -139,6 +144,22 @@ export function SettingsPage() {
     },
   })
 
+  const pictureMutation = useMutation({
+    mutationFn: accountApi.updateProfilePicture,
+    onSuccess: (profile) => {
+      queryClient.setQueryData(['account'], profile)
+      if (pictureInputRef.current) pictureInputRef.current.value = ''
+    },
+  })
+
+  const removePictureMutation = useMutation({
+    mutationFn: accountApi.removeProfilePicture,
+    onSuccess: (profile) => {
+      queryClient.setQueryData(['account'], profile)
+      if (pictureInputRef.current) pictureInputRef.current.value = ''
+    },
+  })
+
   if (profileQuery.isLoading) {
     return <SettingsSkeleton />
   }
@@ -164,24 +185,88 @@ export function SettingsPage() {
       {profileQuery.data && (
         <div className="mt-6 space-y-6">
           <section className="overflow-hidden rounded-xl border border-slate-200 bg-white">
-            <div className="flex flex-col gap-3 border-b border-slate-200 px-5 py-5 sm:flex-row sm:items-start sm:justify-between sm:px-6">
-              <div className="flex items-start gap-3">
-                <UserRound className="mt-0.5 text-indigo-600" size={20} aria-hidden="true" />
-                <div>
-                  <h2 className="font-semibold text-slate-950">Profile</h2>
-                  <p className="mt-1 text-sm text-slate-600">
-                    This identity appears beside documents you upload.
+            <div className="border-b border-slate-200 bg-slate-950 px-5 py-6 text-white sm:px-6">
+              <div className="flex flex-col gap-5 sm:flex-row sm:items-center">
+                <div className="group relative w-fit">
+                  <ProfileAvatar
+                    userSub={profileQuery.data.userSub}
+                    name={profileQuery.data.fullName}
+                    profilePictureUpdatedAt={profileQuery.data.profilePictureUpdatedAt}
+                    size="xl"
+                    className="ring-4 ring-white/15"
+                  />
+                  <button
+                    type="button"
+                    onClick={() => pictureInputRef.current?.click()}
+                    className="absolute -bottom-1 -right-1 grid size-9 place-items-center rounded-full bg-indigo-500 text-white shadow-lg transition hover:scale-105 hover:bg-indigo-400 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-white"
+                    aria-label="Choose a new profile picture"
+                    disabled={pictureMutation.isPending}
+                  >
+                    <Camera size={17} aria-hidden="true" />
+                  </button>
+                </div>
+                <div className="min-w-0 flex-1">
+                  <h2 className="truncate text-xl font-semibold">
+                    {profileQuery.data.fullName}
+                  </h2>
+                  <p className="mt-1 truncate text-sm text-slate-300">
+                    @{profileQuery.data.username} · {profileQuery.data.email}
                   </p>
+                  <div className="mt-3 flex flex-wrap gap-2 text-xs">
+                    <span className="rounded-full bg-indigo-500/20 px-2.5 py-1 font-medium text-indigo-100">
+                      {roleLabels[profileQuery.data.role]}
+                    </span>
+                    <span className="rounded-full bg-white/10 px-2.5 py-1 text-slate-200">
+                      {profileQuery.data.department?.name || 'No department assigned'}
+                    </span>
+                  </div>
+                </div>
+                <div className="flex flex-wrap gap-2">
+                  <Button
+                    type="button"
+                    variant="secondary"
+                    onClick={() => pictureInputRef.current?.click()}
+                    disabled={pictureMutation.isPending}
+                    className="border-white/20 bg-white/10 text-white hover:border-white/30 hover:bg-white/15"
+                  >
+                    <Camera size={16} aria-hidden="true" />
+                    {pictureMutation.isPending ? 'Uploading…' : 'Change photo'}
+                  </Button>
+                  {profileQuery.data.profilePictureUpdatedAt && (
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      onClick={() => removePictureMutation.mutate()}
+                      disabled={removePictureMutation.isPending}
+                      className="text-slate-200 hover:bg-white/10 hover:text-white"
+                    >
+                      <Trash2 size={16} aria-hidden="true" />
+                      Remove
+                    </Button>
+                  )}
                 </div>
               </div>
-              <div className="flex flex-wrap gap-2 text-xs">
-                <span className="rounded-full bg-indigo-50 px-2.5 py-1 font-medium text-indigo-700">
-                  {roleLabels[profileQuery.data.role]}
-                </span>
-                <span className="rounded-full bg-slate-100 px-2.5 py-1 font-medium text-slate-700">
-                  {profileQuery.data.department?.name || 'No department assigned'}
-                </span>
-              </div>
+              <input
+                ref={pictureInputRef}
+                type="file"
+                accept="image/jpeg,image/png,image/webp"
+                className="sr-only"
+                onChange={(event) => {
+                  const file = event.target.files?.[0]
+                  if (file) pictureMutation.mutate(file)
+                }}
+              />
+              <p className="mt-4 text-xs text-slate-400">
+                JPEG, PNG, or WebP · Maximum 5 MB · Square images look best
+              </p>
+              {(pictureMutation.isError || removePictureMutation.isError) && (
+                <p role="alert" className="mt-3 text-sm font-medium text-rose-300">
+                  {getApiErrorMessage(
+                    pictureMutation.error || removePictureMutation.error,
+                    'Your profile picture could not be updated.',
+                  )}
+                </p>
+              )}
             </div>
 
             <form
@@ -189,8 +274,17 @@ export function SettingsPage() {
                 setProfileSaved(false)
                 profileMutation.mutate(values)
               })}
-              className="px-5 py-5 sm:px-6"
+              className="px-5 py-6 sm:px-6"
             >
+              <div className="mb-5 flex items-start gap-3">
+                <UserRound className="mt-0.5 text-indigo-600" size={20} aria-hidden="true" />
+                <div>
+                  <h3 className="font-semibold text-slate-950">Personal details</h3>
+                  <p className="mt-1 text-sm text-slate-600">
+                    This identity appears beside documents you upload.
+                  </p>
+                </div>
+              </div>
               <div className="grid gap-4 sm:grid-cols-2">
                 <Input
                   label="Username"
@@ -303,7 +397,8 @@ export function SettingsPage() {
               <div>
                 <h2 className="font-semibold text-slate-950">Password</h2>
                 <p className="mt-1 text-sm text-slate-600">
-                  Use at least 12 characters with uppercase, lowercase, and a number.
+                  Use at least 14 characters with uppercase, lowercase, a number, and a
+                  special character. Your recent five passwords cannot be reused.
                 </p>
               </div>
             </div>

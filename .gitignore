@@ -4,6 +4,7 @@ frontend/dist/
 frontend/dist-ssr/
 frontend/*.local
 frontend/.env
+.env
 
 # --- Backend (Java / Maven) ---
 backend/target/

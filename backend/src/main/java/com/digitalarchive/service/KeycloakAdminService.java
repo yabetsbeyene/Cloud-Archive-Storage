@@ -41,6 +41,15 @@ public class KeycloakAdminService {
     @Value("${app.keycloak-admin.client-secret}")
     private String clientSecret;
 
+    @Value("${app.keycloak-admin.frontend-client-id}")
+    private String frontendClientId;
+
+    @Value("${app.keycloak-admin.frontend-url}")
+    private String frontendUrl;
+
+    @Value("${app.keycloak-admin.invitation-lifespan-seconds}")
+    private int invitationLifespanSeconds;
+
     public List<KeycloakUser> listUsers() {
         try {
             KeycloakUserRepresentation[] users = client().get()
@@ -82,21 +91,23 @@ public class KeycloakAdminService {
             String email,
             String temporaryPassword,
             ApplicationRole role,
+            String departmentName,
             boolean enabled) {
         String token = accessToken();
         NameParts name = splitName(fullName);
-        Map<String, Object> representation = Map.of(
-                "username", username.trim(),
-                "firstName", name.firstName(),
-                "lastName", name.lastName(),
-                "email", email.trim(),
-                "emailVerified", false,
-                "enabled", enabled,
-                "requiredActions", List.of("UPDATE_PASSWORD"),
-                "credentials", List.of(Map.of(
-                        "type", "password",
-                        "value", temporaryPassword,
-                        "temporary", true)));
+        Map<String, Object> representation = new HashMap<>();
+        representation.put("username", username.trim());
+        representation.put("firstName", name.firstName());
+        representation.put("lastName", name.lastName());
+        representation.put("email", email.trim());
+        representation.put("emailVerified", false);
+        representation.put("enabled", enabled);
+        representation.put("requiredActions", List.of("VERIFY_EMAIL", "UPDATE_PASSWORD"));
+        representation.put("credentials", List.of(Map.of(
+                "type", "password",
+                "value", temporaryPassword,
+                "temporary", true)));
+        representation.put("attributes", invitationAttributes(role, departmentName));
         try {
             URI location = client().post()
                     .uri("/admin/realms/{realm}/users", realm)
@@ -129,6 +140,7 @@ public class KeycloakAdminService {
             String fullName,
             String email,
             ApplicationRole role,
+            String departmentName,
             boolean enabled) {
         String token = accessToken();
         KeycloakUser current = getUser(userId);
@@ -138,6 +150,7 @@ public class KeycloakAdminService {
                 "firstName", name.firstName(),
                 "lastName", name.lastName(),
                 "email", email.trim(),
+                "attributes", invitationAttributes(role, departmentName),
                 "enabled", enabled);
         try {
             client().put()
@@ -215,6 +228,32 @@ public class KeycloakAdminService {
                     .toBodilessEntity();
         } catch (RestClientResponseException exception) {
             throw translate(exception, "change your password");
+        }
+    }
+
+    public void sendInvitationEmail(UUID userId) {
+        try {
+            client().put()
+                    .uri(
+                            "/admin/realms/{realm}/users/{id}/execute-actions-email"
+                                    + "?client_id={frontendClientId}"
+                                    + "&redirect_uri={frontendUrl}"
+                                    + "&lifespan={lifespan}",
+                            realm,
+                            userId,
+                            frontendClientId,
+                            frontendUrl,
+                            invitationLifespanSeconds)
+                    .headers(headers -> headers.setBearerAuth(accessToken()))
+                    .contentType(MediaType.APPLICATION_JSON)
+                    .body(List.of("VERIFY_EMAIL", "UPDATE_PASSWORD"))
+                    .retrieve()
+                    .toBodilessEntity();
+        } catch (RestClientResponseException exception) {
+            throw new ResponseStatusException(
+                    HttpStatus.BAD_GATEWAY,
+                    "The account was not created because its invitation email could not be sent. "
+                            + "Check the SMTP configuration and recipient address.");
         }
     }
 
@@ -326,6 +365,19 @@ public class KeycloakAdminService {
         return separator < 0
                 ? new NameParts(normalized, "")
                 : new NameParts(normalized.substring(0, separator), normalized.substring(separator + 1));
+    }
+
+    private Map<String, List<String>> invitationAttributes(
+            ApplicationRole role,
+            String departmentName) {
+        Map<String, List<String>> attributes = new HashMap<>();
+        attributes.put("applicationRole", List.of(role.name()));
+        attributes.put(
+                "applicationDepartment",
+                List.of(departmentName == null || departmentName.isBlank()
+                        ? "Unassigned"
+                        : departmentName));
+        return attributes;
     }
 
     private ResponseStatusException translate(

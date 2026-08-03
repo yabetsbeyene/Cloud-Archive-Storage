@@ -32,26 +32,30 @@ public class DocumentController {
     private final DocumentService documentService;
 
     @GetMapping
-    public List<DocumentResponse> list() {
-        return documentService.listActiveDocuments();
+    public List<DocumentResponse> list(@AuthenticationPrincipal Jwt jwt) {
+        return documentService.listActiveDocuments(jwt);
     }
 
     @GetMapping("/review-queue")
     @PreAuthorize("hasAnyRole('ADMIN', 'ARCHIVIST', 'MANAGER')")
-    public List<DocumentResponse> reviewQueue() {
-        return documentService.listReviewQueue();
+    public List<DocumentResponse> reviewQueue(@AuthenticationPrincipal Jwt jwt) {
+        return documentService.listReviewQueue(jwt);
     }
 
     @GetMapping("/{id}")
-    public ResponseEntity<DocumentResponse> get(@PathVariable UUID id) {
-        return documentService.getActiveById(id)
+    public ResponseEntity<DocumentResponse> get(
+            @PathVariable UUID id,
+            @AuthenticationPrincipal Jwt jwt) {
+        return documentService.getActiveById(id, jwt)
                 .map(ResponseEntity::ok)
                 .orElseGet(() -> ResponseEntity.notFound().build());
     }
 
     @GetMapping("/search")
-    public List<DocumentResponse> search(@RequestParam("q") String query) {
-        return documentService.searchDocuments(query);
+    public List<DocumentResponse> search(
+            @RequestParam("q") String query,
+            @AuthenticationPrincipal Jwt jwt) {
+        return documentService.searchDocuments(query, jwt);
     }
 
     @PostMapping
@@ -72,7 +76,7 @@ public class DocumentController {
             @PathVariable UUID id,
             @Valid @RequestBody UpdateDocumentRequest request,
             @AuthenticationPrincipal Jwt jwt) {
-        return documentService.updateDocument(id, request, actorId(jwt))
+        return documentService.updateDocument(id, request, actorId(jwt), jwt)
                 .map(ResponseEntity::ok)
                 .orElseGet(() -> ResponseEntity.notFound().build());
     }

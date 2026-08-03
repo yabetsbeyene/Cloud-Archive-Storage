@@ -49,7 +49,22 @@ public class FileStorageService {
     }
 
     public Path resolve(String storedFileName) {
-        return storageLocation.resolve(storedFileName);
+        Path resolved = storageLocation.resolve(storedFileName).normalize();
+        if (!resolved.startsWith(storageLocation)) {
+            throw new IllegalArgumentException("Invalid stored file name");
+        }
+        return resolved;
+    }
+
+    public void delete(String storedFileName) {
+        if (storedFileName == null || storedFileName.isBlank()) {
+            return;
+        }
+        try {
+            Files.deleteIfExists(resolve(storedFileName));
+        } catch (IOException exception) {
+            throw new RuntimeException("Failed to remove stored file", exception);
+        }
     }
 
     private String computeSha256(Path path) throws IOException {

@@ -14,11 +14,18 @@ Boot, PostgreSQL, and Keycloak.
 - Administrator-created documents are archived automatically
 - Category and department management restricted to administrators
 - User creation, role assignment, department assignment, and deactivation
+- Automatic account invitation emails with expiring password-setup links
+- Strong 14-character password policy with complexity and password-history checks
+- Authorized in-app previews for PDF, image, and plain-text document versions
+- Administrator account deactivation and permanent personal-data deletion
 - Automatic synchronization between Keycloak and application users
 - Uploader name, email, and department snapshots on documents
 - Document notes, workflow-history, audit-log, and dashboard APIs
 - Audit log with actor, department, resource, category, action, and details
 - Per-account light, dark, and system theme preferences
+- Optional per-user profile pictures with validated upload, initials fallback,
+  replacement, and removal
+- Interactive account menu with profile details and secure sign-out
 - Account profile and password settings
 - Database migrations, transaction boundaries, DTO responses, and consistent
   API errors
@@ -56,8 +63,8 @@ The frontend, backend API, and Keycloak are all available through this address.
 
 | Account | Password | Role |
 |---|---|---|
-| `admin.user` | `password123` | `ADMIN` |
-| `dept.user` | `password123` | `DEPT_USER` |
+| `admin.user` | `ArchiveAdmin123!` | `ADMIN` |
+| `dept.user` | `ArchiveDept123!` | `DEPT_USER` |
 
 Keycloak administration is available at:
 
@@ -73,6 +80,29 @@ Password: admin
 ```
 
 These credentials are for local development only.
+
+## User invitation email
+
+When an administrator creates a user, the system:
+
+1. Creates the Keycloak account and archive profile.
+2. Assigns the selected role and department.
+3. Creates a temporary fallback password that must be changed.
+4. Emails a signed, expiring Keycloak link for email verification and private
+   password setup.
+
+The invitation includes the username, role, and department. It intentionally
+does not include the temporary password because email is not a safe place to
+store reusable credentials.
+
+Local emails are captured by Mailpit:
+
+```text
+http://localhost:8025
+```
+
+To deliver invitations to real inboxes, copy `.env.example` to `.env` and
+replace the SMTP values with credentials from your email provider.
 
 ## Roles
 
@@ -144,6 +174,7 @@ delete the uploaded file.
 | Application | `http://localhost:5173` |
 | Backend health | `http://localhost:5173/actuator/health` |
 | Keycloak | `http://localhost:5173/auth` |
+| Local email inbox | `http://localhost:8025` |
 | Application PostgreSQL | `localhost:5533` |
 
 The backend and Keycloak databases are not intended to be exposed publicly.
