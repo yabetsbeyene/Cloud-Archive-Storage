@@ -87,7 +87,7 @@ export function UsersPage() {
     onSuccess: (_, values) => {
       queryClient.invalidateQueries({ queryKey: ['users'] })
       setInvitationNotice(
-        `Invitation sent to ${values.email}. They can verify their address and set a private password from the secure link.`,
+        `The configured mail server accepted the invitation for ${values.email}. They can verify their address and set a private password from the secure link. In local development, open Mailpit to view it.`,
       )
       closeForm()
     },
@@ -210,7 +210,7 @@ export function UsersPage() {
         >
           <MailCheck className="mt-0.5 shrink-0 text-emerald-700" size={19} aria-hidden="true" />
           <div>
-            <p className="text-sm font-semibold">Account created and invitation delivered</p>
+            <p className="text-sm font-semibold">Account created and invitation queued</p>
             <p className="mt-1 text-sm leading-6 text-emerald-800">{invitationNotice}</p>
           </div>
         </div>

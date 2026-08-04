@@ -101,8 +101,19 @@ Local emails are captured by Mailpit:
 http://localhost:8025
 ```
 
-To deliver invitations to real inboxes, copy `.env.example` to `.env` and
-replace the SMTP values with credentials from your email provider.
+Mailpit does not forward messages to real inboxes. To enable real delivery,
+copy `.env.example` to `.env`, replace the SMTP values with credentials from
+your email provider, and recreate Keycloak:
+
+```powershell
+Copy-Item .env.example .env
+docker compose up -d --build --force-recreate keycloak
+```
+
+Keycloak synchronizes these SMTP values into the existing realm at every
+startup, so changing providers does not require deleting users or realm data.
+Use an app-specific SMTP password when your provider supports one, and never
+commit `.env`.
 
 ## Roles
 

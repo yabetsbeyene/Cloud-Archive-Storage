@@ -33,6 +33,11 @@ if [[ -z "${KEYCLOAK_ADMIN_CLIENT_SECRET:-}" ]]; then
   exit 1
 fi
 
+if [[ -z "${KC_BOOTSTRAP_ADMIN_USERNAME:-}" || -z "${KC_BOOTSTRAP_ADMIN_PASSWORD:-}" ]]; then
+  echo "KC_BOOTSTRAP_ADMIN_USERNAME and KC_BOOTSTRAP_ADMIN_PASSWORD must be configured" >&2
+  exit 1
+fi
+
 if [[ -z "${SMTP_HOST:-}" || -z "${SMTP_PORT:-}" || -z "${SMTP_FROM:-}" ]]; then
   echo "SMTP_HOST, SMTP_PORT, and SMTP_FROM must be configured" >&2
   exit 1
@@ -62,4 +67,63 @@ while IFS= read -r line || [[ -n "${line}" ]]; do
   printf '%s\n' "${line}" >> "${realm_file}"
 done < "${realm_template}"
 
-exec /opt/keycloak/bin/kc.sh start --optimized --import-realm "$@"
+# Startup realm imports intentionally do not overwrite an existing realm. Start
+# Keycloak first, then synchronize the SMTP settings so changing environment
+# variables also updates installations that already have users and documents.
+/opt/keycloak/bin/kc.sh start --optimized --import-realm "$@" &
+keycloak_pid=$!
+
+forward_signal() {
+  kill -TERM "${keycloak_pid}" 2>/dev/null || true
+}
+trap forward_signal TERM INT
+
+relative_path="${KC_HTTP_RELATIVE_PATH:-/auth}"
+relative_path="/${relative_path#/}"
+relative_path="${relative_path%/}"
+local_server="http://127.0.0.1:${KC_HTTP_PORT:-8080}${relative_path}"
+kcadm_config="/tmp/archive-kcadm.config"
+
+authenticated=false
+for _ in $(seq 1 90); do
+  if ! kill -0 "${keycloak_pid}" 2>/dev/null; then
+    wait "${keycloak_pid}"
+    exit $?
+  fi
+
+  if /opt/keycloak/bin/kcadm.sh config credentials \
+      --config "${kcadm_config}" \
+      --server "${local_server}" \
+      --realm master \
+      --user "${KC_BOOTSTRAP_ADMIN_USERNAME}" \
+      --password "${KC_BOOTSTRAP_ADMIN_PASSWORD}" >/dev/null 2>&1; then
+    authenticated=true
+    break
+  fi
+
+  sleep 2
+done
+
+if [[ "${authenticated}" != "true" ]]; then
+  echo "Keycloak started, but runtime realm configuration could not be authenticated" >&2
+  kill -TERM "${keycloak_pid}" 2>/dev/null || true
+  wait "${keycloak_pid}" || true
+  exit 1
+fi
+
+/opt/keycloak/bin/kcadm.sh update realms/digital-archive \
+  --config "${kcadm_config}" \
+  -s "smtpServer.host=${SMTP_HOST}" \
+  -s "smtpServer.port=${SMTP_PORT}" \
+  -s "smtpServer.from=${SMTP_FROM}" \
+  -s "smtpServer.fromDisplayName=${SMTP_FROM_DISPLAY_NAME}" \
+  -s "smtpServer.auth=${SMTP_AUTH}" \
+  -s "smtpServer.starttls=${SMTP_STARTTLS}" \
+  -s "smtpServer.ssl=${SMTP_SSL}" \
+  -s "smtpServer.user=${SMTP_USER}" \
+  -s "smtpServer.password=${SMTP_PASSWORD}" >/dev/null
+
+rm -f "${kcadm_config}"
+echo "Realm SMTP configuration synchronized for ${SMTP_HOST}:${SMTP_PORT}"
+
+wait "${keycloak_pid}"
