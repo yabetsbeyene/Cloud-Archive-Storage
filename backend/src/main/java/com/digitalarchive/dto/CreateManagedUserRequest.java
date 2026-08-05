@@ -17,13 +17,6 @@ public record CreateManagedUserRequest(
         String username,
         @NotBlank @Size(max = 200) String fullName,
         @NotBlank @Email @Size(max = 255) String email,
-        @NotBlank
-        @Size(min = 14, max = 128)
-        @Pattern(regexp = ".*[a-z].*", message = "must contain a lowercase letter")
-        @Pattern(regexp = ".*[A-Z].*", message = "must contain an uppercase letter")
-        @Pattern(regexp = ".*[0-9].*", message = "must contain a number")
-        @Pattern(regexp = ".*[^A-Za-z0-9\\s].*", message = "must contain a special character")
-        String temporaryPassword,
         @NotNull ApplicationRole role,
         UUID departmentId) {
 }

@@ -271,13 +271,16 @@ function AuditCard({ log }: { log: AuditLog }) {
 }
 
 function ActionBadge({ action }: { action: AuditAction }) {
-  const label = action.charAt(0) + action.slice(1).toLowerCase()
+  const label = action
+    .split('_')
+    .map((part) => part.charAt(0) + part.slice(1).toLowerCase())
+    .join(' ')
   const className =
     action === 'DELETE' || action === 'REJECT'
       ? 'bg-rose-50 text-rose-700'
       : action === 'CREATE' || action === 'APPROVE' || action === 'RESTORE'
         ? 'bg-emerald-50 text-emerald-700'
-        : action === 'UPDATE' || action === 'UPLOAD' || action === 'ARCHIVE'
+        : action === 'UPDATE' || action === 'UPLOAD' || action === 'ARCHIVE' || action === 'SUBMIT' || action === 'START_REVIEW'
           ? 'bg-amber-50 text-amber-700'
           : 'bg-slate-100 text-slate-700'
   return <span className={`inline-flex rounded-full px-2.5 py-1 text-xs font-medium ${className}`}>{label}</span>

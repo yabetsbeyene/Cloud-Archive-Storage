@@ -89,7 +89,6 @@ public class KeycloakAdminService {
             String username,
             String fullName,
             String email,
-            String temporaryPassword,
             ApplicationRole role,
             String departmentName,
             boolean enabled) {
@@ -103,10 +102,6 @@ public class KeycloakAdminService {
         representation.put("emailVerified", false);
         representation.put("enabled", enabled);
         representation.put("requiredActions", List.of("VERIFY_EMAIL", "UPDATE_PASSWORD"));
-        representation.put("credentials", List.of(Map.of(
-                "type", "password",
-                "value", temporaryPassword,
-                "temporary", true)));
         representation.put("attributes", invitationAttributes(role, departmentName));
         try {
             URI location = client().post()

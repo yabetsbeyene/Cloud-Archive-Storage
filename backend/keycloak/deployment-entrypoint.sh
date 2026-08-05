@@ -55,6 +55,12 @@ export SMTP_STARTTLS="${SMTP_STARTTLS:-false}"
 export SMTP_SSL="${SMTP_SSL:-false}"
 export SMTP_USER="${SMTP_USER:-}"
 export SMTP_PASSWORD="${SMTP_PASSWORD:-}"
+export ARCHIVE_PASSWORD_POLICY="${ARCHIVE_PASSWORD_POLICY:-length(8) and digits(1) and lowerCase(1) and upperCase(1)}"
+
+# Google displays app passwords in four groups for readability, but SMTP
+# authentication expects the same 16 characters without whitespace.
+SMTP_PASSWORD="${SMTP_PASSWORD//[[:space:]]/}"
+export SMTP_PASSWORD
 
 frontend_url="${FRONTEND_URL%/}"
 realm_template="/opt/keycloak/data/import/realm-export.template"
@@ -121,9 +127,11 @@ fi
   -s "smtpServer.starttls=${SMTP_STARTTLS}" \
   -s "smtpServer.ssl=${SMTP_SSL}" \
   -s "smtpServer.user=${SMTP_USER}" \
-  -s "smtpServer.password=${SMTP_PASSWORD}" >/dev/null
+  -s "smtpServer.password=${SMTP_PASSWORD}" \
+  -s "passwordPolicy=${ARCHIVE_PASSWORD_POLICY}" >/dev/null
 
 rm -f "${kcadm_config}"
 echo "Realm SMTP configuration synchronized for ${SMTP_HOST}:${SMTP_PORT}"
+echo "Realm password policy synchronized"
 
 wait "${keycloak_pid}"

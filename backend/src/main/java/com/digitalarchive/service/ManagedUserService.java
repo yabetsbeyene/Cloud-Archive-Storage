@@ -61,7 +61,6 @@ public class ManagedUserService {
                 request.username(),
                 request.fullName(),
                 request.email(),
-                request.temporaryPassword(),
                 request.role(),
                 department == null ? null : department.getName(),
                 true);
@@ -80,7 +79,7 @@ public class ManagedUserService {
             auditService.log(actorId, AuditAction.CREATE, ResourceType.USER,
                     saved.getUserSub(), "Created user " + identity.username()
                             + " with role " + request.role().name()
-                            + " and sent a password setup invitation to " + identity.email());
+                            + " and sent an account setup invitation to " + identity.email());
             keycloakAdminService.sendInvitationEmail(identity.id());
             return toResponse(identity, saved);
         } catch (RuntimeException exception) {
@@ -124,9 +123,6 @@ public class ManagedUserService {
         profile.setDeletedBy(request.isActive() ? null : actorId);
         AppUser saved = appUserRepository.save(profile);
 
-        auditService.log(actorId, AuditAction.UPDATE, ResourceType.USER,
-                userId, "Updated user " + identity.username()
-                        + " with role " + request.role().name());
         return toResponse(identity, saved);
     }
 

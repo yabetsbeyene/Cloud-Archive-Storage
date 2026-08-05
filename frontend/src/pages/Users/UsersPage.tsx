@@ -29,15 +29,6 @@ const userSchema = z.object({
     .regex(/^[a-zA-Z0-9._-]+$/, 'Use letters, numbers, dots, underscores, or hyphens'),
   fullName: z.string().trim().min(1, 'Full name is required').max(200),
   email: z.string().trim().email('Enter a valid email address').max(255),
-  temporaryPassword: z
-    .string()
-    .max(128)
-    .optional()
-    .refine((value) => !value || value.length >= 14, 'Use at least 14 characters')
-    .refine((value) => !value || /[a-z]/.test(value), 'Include a lowercase letter')
-    .refine((value) => !value || /[A-Z]/.test(value), 'Include an uppercase letter')
-    .refine((value) => !value || /[0-9]/.test(value), 'Include a number')
-    .refine((value) => !value || /[^A-Za-z0-9\s]/.test(value), 'Include a special character'),
   role: z.enum(['ADMIN', 'ARCHIVIST', 'MANAGER', 'DEPT_USER', 'VIEWER']),
   departmentId: z.string().optional(),
   isActive: z.boolean(),
@@ -75,7 +66,6 @@ export function UsersPage() {
     register,
     handleSubmit,
     reset,
-    setError,
     formState: { errors },
   } = useForm<UserFormValues>({
     resolver: zodResolver(userSchema),
@@ -138,7 +128,6 @@ export function UsersPage() {
       username: '',
       fullName: '',
       email: '',
-      temporaryPassword: '',
       role: 'VIEWER',
       departmentId: '',
       isActive: true,
@@ -152,7 +141,6 @@ export function UsersPage() {
       username: user.username,
       fullName: user.fullName,
       email: user.email,
-      temporaryPassword: '',
       role: user.role,
       departmentId: user.department?.departmentId ?? '',
       isActive: user.isActive,
@@ -172,15 +160,10 @@ export function UsersPage() {
       updateMutation.mutate({ sub: editing.userSub, values })
       return
     }
-    if (!values.temporaryPassword) {
-      setError('temporaryPassword', { message: 'Temporary password is required' })
-      return
-    }
     createMutation.mutate({
       username: values.username.trim(),
       fullName: values.fullName.trim(),
       email: values.email.trim(),
-      temporaryPassword: values.temporaryPassword,
       role: values.role,
       departmentId: values.departmentId || undefined,
     })
@@ -415,22 +398,6 @@ export function UsersPage() {
           />
           <Input label="Full name" {...register('fullName')} error={errors.fullName?.message} />
           <Input label="Email address" type="email" {...register('email')} error={errors.email?.message} />
-          {!editing && (
-            <Input
-              label="Temporary password"
-              type="password"
-              minLength={14}
-              placeholder="14+ characters with a symbol"
-              {...register('temporaryPassword')}
-              error={errors.temporaryPassword?.message}
-            />
-          )}
-          {!editing && (
-            <p className="-mt-2 text-xs leading-5 text-slate-500">
-              Use 14 or more characters with uppercase, lowercase, a number, and a special
-              character. It is a one-time fallback and is not included in the email.
-            </p>
-          )}
           <SelectField label="Application role" {...register('role')} error={errors.role?.message}>
             <option value="VIEWER">Viewer — read-only access</option>
             <option value="DEPT_USER">Department user — create and edit documents</option>

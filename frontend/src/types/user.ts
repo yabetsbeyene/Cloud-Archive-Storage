@@ -51,7 +51,6 @@ export interface CreateUserInput {
   username: string
   fullName: string
   email: string
-  temporaryPassword: string
   role: Role
   departmentId?: string
 }

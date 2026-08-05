@@ -2,8 +2,6 @@ package com.digitalarchive.service;
 
 import com.digitalarchive.domain.entity.AppUser;
 import com.digitalarchive.domain.entity.Department;
-import com.digitalarchive.domain.enums.AuditAction;
-import com.digitalarchive.domain.enums.ResourceType;
 import com.digitalarchive.dto.AccountProfileResponse;
 import com.digitalarchive.dto.ChangePasswordRequest;
 import com.digitalarchive.dto.DepartmentSummaryResponse;
@@ -28,7 +26,6 @@ public class AccountService {
 
     private final KeycloakAdminService keycloakAdminService;
     private final AppUserRepository appUserRepository;
-    private final AuditService auditService;
     private final FileStorageService fileStorageService;
 
     private static final long MAX_PROFILE_PICTURE_BYTES = 5L * 1024L * 1024L;
@@ -58,12 +55,6 @@ public class AccountService {
         profile.setFullName(identity.fullName());
         profile.setEmail(identity.email());
         AppUser saved = appUserRepository.save(profile);
-        auditService.log(
-                userId,
-                AuditAction.UPDATE,
-                ResourceType.USER,
-                userId,
-                "Updated own account profile");
         return response(identity, saved);
     }
 
@@ -74,16 +65,10 @@ public class AccountService {
         }
         if (!isStrongPassword(request.newPassword())) {
             throw new IllegalArgumentException(
-                    "Password must be at least 14 characters and contain uppercase, lowercase, "
-                            + "numeric, and special characters");
+                    "Password must be at least 8 characters and contain an uppercase letter, "
+                            + "a lowercase letter, and a number");
         }
         keycloakAdminService.changePassword(userId, request.newPassword());
-        auditService.log(
-                userId,
-                AuditAction.UPDATE,
-                ResourceType.USER,
-                userId,
-                "Changed own account password");
     }
 
     @Transactional
@@ -94,12 +79,6 @@ public class AccountService {
                 .orElseThrow(() -> new ResourceNotFoundException("Application user profile not found"));
         profile.setThemePreference(request.themePreference());
         AppUser saved = appUserRepository.save(profile);
-        auditService.log(
-                userId,
-                AuditAction.UPDATE,
-                ResourceType.USER,
-                userId,
-                "Changed dashboard theme to " + request.themePreference().name());
         return response(keycloakAdminService.getUser(userId), saved);
     }
 
@@ -118,8 +97,6 @@ public class AccountService {
             if (previousFileName != null && !previousFileName.equals(stored.storedFileName())) {
                 fileStorageService.delete(previousFileName);
             }
-            auditService.log(userId, AuditAction.UPDATE, ResourceType.USER, userId,
-                    "Updated own profile picture");
             return response(keycloakAdminService.getUser(userId), saved);
         } catch (RuntimeException exception) {
             fileStorageService.delete(stored.storedFileName());
@@ -137,8 +114,6 @@ public class AccountService {
         profile.setProfilePictureUpdatedAt(null);
         AppUser saved = appUserRepository.save(profile);
         fileStorageService.delete(storedFileName);
-        auditService.log(userId, AuditAction.UPDATE, ResourceType.USER, userId,
-                "Removed own profile picture");
         return response(keycloakAdminService.getUser(userId), saved);
     }
 
@@ -202,12 +177,10 @@ public class AccountService {
     }
 
     private boolean isStrongPassword(String password) {
-        return password.length() >= 14
+        return password.length() >= 8
                 && password.chars().anyMatch(Character::isUpperCase)
                 && password.chars().anyMatch(Character::isLowerCase)
-                && password.chars().anyMatch(Character::isDigit)
-                && password.chars().anyMatch(character ->
-                        !Character.isLetterOrDigit(character) && !Character.isWhitespace(character));
+                && password.chars().anyMatch(Character::isDigit);
     }
 
     private AccountProfileResponse response(

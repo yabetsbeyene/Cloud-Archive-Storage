@@ -15,7 +15,7 @@ Boot, PostgreSQL, and Keycloak.
 - Category and department management restricted to administrators
 - User creation, role assignment, department assignment, and deactivation
 - Automatic account invitation emails with expiring password-setup links
-- Strong 14-character password policy with complexity and password-history checks
+- Simple secure password policy: 8+ characters with uppercase, lowercase, and a number
 - Authorized in-app previews for PDF, image, and plain-text document versions
 - Administrator account deactivation and permanent personal-data deletion
 - Automatic synchronization between Keycloak and application users
@@ -87,13 +87,17 @@ When an administrator creates a user, the system:
 
 1. Creates the Keycloak account and archive profile.
 2. Assigns the selected role and department.
-3. Creates a temporary fallback password that must be changed.
+3. Creates no administrator-visible password.
 4. Emails a signed, expiring Keycloak link for email verification and private
    password setup.
 
 The invitation includes the username, role, and department. It intentionally
-does not include the temporary password because email is not a safe place to
-store reusable credentials.
+contains no password; only the user sets their private password.
+
+Audit history records important document and account events only, including
+document creation, upload, view, download, workflow submission/review,
+approval, rejection, archival, and administrator user creation/deletion.
+Entries older than seven days are removed automatically.
 
 Local emails are captured by Mailpit:
 

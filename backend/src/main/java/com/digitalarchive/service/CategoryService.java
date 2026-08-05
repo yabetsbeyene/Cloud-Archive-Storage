@@ -1,8 +1,6 @@
 package com.digitalarchive.service;
 
 import com.digitalarchive.domain.entity.Category;
-import com.digitalarchive.domain.enums.AuditAction;
-import com.digitalarchive.domain.enums.ResourceType;
 import com.digitalarchive.dto.CategoryRequest;
 import com.digitalarchive.dto.CategoryResponse;
 import com.digitalarchive.exception.ResourceNotFoundException;
@@ -24,7 +22,6 @@ import java.util.UUID;
 public class CategoryService {
 
     private final CategoryRepository categoryRepository;
-    private final AuditService auditService;
     private final ApiResponseMapper responseMapper;
     private final EntityManager entityManager;
 
@@ -51,8 +48,6 @@ public class CategoryService {
 
         Category saved = categoryRepository.saveAndFlush(category);
         entityManager.refresh(saved);
-        auditService.log(actorId, AuditAction.CREATE, ResourceType.CATEGORY,
-                saved.getCategoryId(), "Created category: " + saved.getName());
         return responseMapper.toCategoryResponse(saved);
     }
 
@@ -66,8 +61,6 @@ public class CategoryService {
             existing.setUpdatedBy(actorId);
 
             Category saved = categoryRepository.save(existing);
-            auditService.log(actorId, AuditAction.UPDATE, ResourceType.CATEGORY,
-                    saved.getCategoryId(), "Updated category: " + saved.getName());
             return responseMapper.toCategoryResponse(saved);
         });
     }
@@ -78,8 +71,6 @@ public class CategoryService {
             existing.setDeletedAt(OffsetDateTime.now());
             existing.setDeletedBy(actorId);
             categoryRepository.save(existing);
-            auditService.log(actorId, AuditAction.DELETE, ResourceType.CATEGORY,
-                    existing.getCategoryId(), "Soft-deleted category: " + existing.getName());
             return true;
         }).orElse(false);
     }

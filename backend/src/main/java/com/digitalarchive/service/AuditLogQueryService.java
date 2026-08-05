@@ -155,6 +155,8 @@ public class AuditLogQueryService {
             case "VIEW" -> "Viewed";
             case "UPLOAD" -> "Uploaded";
             case "DOWNLOAD" -> "Downloaded";
+            case "SUBMIT" -> "Submitted";
+            case "START_REVIEW" -> "Started review of";
             case "LOGIN" -> "Logged in to";
             case "LOGOUT" -> "Logged out of";
             case "APPROVE" -> "Approved";

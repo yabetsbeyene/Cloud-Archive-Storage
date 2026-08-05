@@ -13,8 +13,8 @@
   </p>
   <p>
     Use the secure link below to verify your email address and choose a private
-    password. The temporary password created by the administrator is not included
-    in this email.
+    password. No password has been created for you; only you will know the
+    password you set through this link.
   </p>
   <p>
     <a href="${link}">Verify email and set password</a>

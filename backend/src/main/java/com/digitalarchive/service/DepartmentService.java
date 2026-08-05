@@ -1,8 +1,6 @@
 package com.digitalarchive.service;
 
 import com.digitalarchive.domain.entity.Department;
-import com.digitalarchive.domain.enums.AuditAction;
-import com.digitalarchive.domain.enums.ResourceType;
 import com.digitalarchive.dto.DepartmentRequest;
 import com.digitalarchive.dto.DepartmentResponse;
 import com.digitalarchive.exception.ResourceNotFoundException;
@@ -24,7 +22,6 @@ import java.util.UUID;
 public class DepartmentService {
 
     private final DepartmentRepository departmentRepository;
-    private final AuditService auditService;
     private final ApiResponseMapper responseMapper;
     private final EntityManager entityManager;
 
@@ -50,8 +47,6 @@ public class DepartmentService {
 
         Department saved = departmentRepository.saveAndFlush(department);
         entityManager.refresh(saved);
-        auditService.log(actorId, AuditAction.CREATE, ResourceType.DEPARTMENT,
-                saved.getDepartmentId(), "Created department: " + saved.getName());
         return responseMapper.toDepartmentResponse(saved);
     }
 
@@ -64,8 +59,6 @@ public class DepartmentService {
             existing.setUpdatedBy(actorId);
 
             Department saved = departmentRepository.save(existing);
-            auditService.log(actorId, AuditAction.UPDATE, ResourceType.DEPARTMENT,
-                    saved.getDepartmentId(), "Updated department: " + saved.getName());
             return responseMapper.toDepartmentResponse(saved);
         });
     }
@@ -76,8 +69,6 @@ public class DepartmentService {
             existing.setDeletedAt(OffsetDateTime.now());
             existing.setDeletedBy(actorId);
             departmentRepository.save(existing);
-            auditService.log(actorId, AuditAction.DELETE, ResourceType.DEPARTMENT,
-                    existing.getDepartmentId(), "Soft-deleted department: " + existing.getName());
             return true;
         }).orElse(false);
     }

@@ -4,7 +4,7 @@
   "sslRequired": "external",
   "registrationAllowed": false,
   "editUsernameAllowed": true,
-  "passwordPolicy": "length(14) and digits(1) and lowerCase(1) and upperCase(1) and specialChars(1) and notUsername and notEmail and passwordHistory(5)",
+  "passwordPolicy": "length(8) and digits(1) and lowerCase(1) and upperCase(1)",
   "emailTheme": "archive-invitation",
   "smtpServer": {
     "host": "${SMTP_HOST}",

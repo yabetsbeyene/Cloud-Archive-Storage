@@ -45,12 +45,11 @@ const passwordSchema = z
   .object({
     newPassword: z
       .string()
-      .min(14, 'Use at least 14 characters')
+      .min(8, 'Use at least 8 characters')
       .max(128)
       .regex(/[a-z]/, 'Include a lowercase letter')
       .regex(/[A-Z]/, 'Include an uppercase letter')
-      .regex(/[0-9]/, 'Include a number')
-      .regex(/[^A-Za-z0-9\s]/, 'Include a special character'),
+      .regex(/[0-9]/, 'Include a number'),
     confirmPassword: z.string().min(1, 'Confirm your new password'),
   })
   .refine((values) => values.newPassword === values.confirmPassword, {
@@ -397,8 +396,8 @@ export function SettingsPage() {
               <div>
                 <h2 className="font-semibold text-slate-950">Password</h2>
                 <p className="mt-1 text-sm text-slate-600">
-                  Use at least 14 characters with uppercase, lowercase, a number, and a
-                  special character. Your recent five passwords cannot be reused.
+                  Use at least 8 characters with an uppercase letter, a lowercase letter,
+                  and a number.
                 </p>
               </div>
             </div>

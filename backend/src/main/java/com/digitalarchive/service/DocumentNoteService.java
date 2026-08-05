@@ -2,9 +2,7 @@ package com.digitalarchive.service;
 
 import com.digitalarchive.domain.entity.Document;
 import com.digitalarchive.domain.entity.DocumentNote;
-import com.digitalarchive.domain.enums.AuditAction;
 import com.digitalarchive.domain.enums.NoteType;
-import com.digitalarchive.domain.enums.ResourceType;
 import com.digitalarchive.dto.DocumentNoteRequest;
 import com.digitalarchive.dto.DocumentNoteResponse;
 import com.digitalarchive.exception.ResourceNotFoundException;
@@ -29,7 +27,6 @@ public class DocumentNoteService {
 
     private final DocumentNoteRepository noteRepository;
     private final DocumentRepository documentRepository;
-    private final AuditService auditService;
     private final ApiResponseMapper responseMapper;
     private final EntityManager entityManager;
 
@@ -52,8 +49,6 @@ public class DocumentNoteService {
 
         DocumentNote saved = noteRepository.saveAndFlush(note);
         entityManager.refresh(saved);
-        auditService.log(actorId, AuditAction.CREATE, ResourceType.DOCUMENT, documentId,
-                "Created note " + saved.getNoteId() + " on document " + documentId);
         return responseMapper.toNoteResponse(saved);
     }
 
@@ -74,8 +69,6 @@ public class DocumentNoteService {
             existing.setUpdatedBy(actorId);
 
             DocumentNote saved = noteRepository.save(existing);
-            auditService.log(actorId, AuditAction.UPDATE, ResourceType.DOCUMENT, documentId,
-                    "Updated note " + noteId + " on document " + documentId);
             return responseMapper.toNoteResponse(saved);
         });
     }
@@ -88,8 +81,6 @@ public class DocumentNoteService {
             existing.setDeletedAt(OffsetDateTime.now());
             existing.setDeletedBy(actorId);
             noteRepository.save(existing);
-            auditService.log(actorId, AuditAction.DELETE, ResourceType.DOCUMENT, documentId,
-                    "Soft-deleted note " + noteId + " on document " + documentId);
             return true;
         }).orElse(false);
     }

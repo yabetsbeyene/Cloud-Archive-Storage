@@ -109,6 +109,8 @@ public class DocumentWorkflowService {
 
     private AuditAction mapToAuditAction(DocumentStatus targetStatus) {
         return switch (targetStatus) {
+            case SUBMITTED -> AuditAction.SUBMIT;
+            case UNDER_REVIEW -> AuditAction.START_REVIEW;
             case APPROVED -> AuditAction.APPROVE;
             case REJECTED -> AuditAction.REJECT;
             case ARCHIVED -> AuditAction.ARCHIVE;

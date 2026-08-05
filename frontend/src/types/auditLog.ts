@@ -5,6 +5,8 @@ export type AuditAction =
   | 'VIEW'
   | 'UPLOAD'
   | 'DOWNLOAD'
+  | 'SUBMIT'
+  | 'START_REVIEW'
   | 'LOGIN'
   | 'LOGOUT'
   | 'APPROVE'
