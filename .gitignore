@@ -28,3 +28,52 @@ yarn-debug.log*
 yarn-error.log*
 pnpm-debug.log*
 lerna-debug.log*
+# Environment files
+.env
+.env.*
+!.env.example
+
+# Node / frontend dependencies
+node_modules/
+**/node_modules/
+.npm/
+.pnpm-store/
+
+# Build output
+build/
+dist/
+out/
+coverage/
+*.tsbuildinfo
+
+# Java / backend build artifacts
+**/target/
+**/bin/
+**/out/
+*.class
+*.jar
+*.war
+
+# IDE / editor files
+.vscode/
+.idea/
+*.iml
+.DS_Store
+Thumbs.db
+
+# Logs
+logs/
+*.log
+npm-debug.log*
+yarn-debug.log*
+pnpm-debug.log*
+
+# OS files
+._*
+
+# Local database / temp files
+*.sqlite
+*.sqlite3
+*.pid
+.tmp/
+temp/
