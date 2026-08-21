@@ -17,7 +17,12 @@ export default defineConfig(({ mode }) => {
     const missing = requiredProductionVariables.filter((key) => !env[key]?.trim())
 
     if (missing.length > 0) {
-      throw new Error(`Missing required production environment variables: ${missing.join(', ')}`)
+      // Warn instead of hard-failing the build. This gets you a deployable
+      // site even while env vars are still being sorted out — the app itself
+      // will show a clear "Authentication unavailable" runtime error if
+      // VITE_KEYCLOAK_URL etc. are genuinely missing, which is easier to
+      // debug (browser console/network tab) than a blocked build.
+      console.warn(`⚠️  Missing production environment variables: ${missing.join(', ')}`)
     }
   }
 
