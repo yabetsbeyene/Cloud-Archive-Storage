@@ -20,8 +20,6 @@ export const versionsApi = {
       .then((r) => r.data)
   },
 
-  // Downloads as a Blob so the browser can save it with the real filename,
-  // rather than navigating the page to the file URL directly.
   download: async (documentId: string, versionId: string, fileName: string) => {
     const response = await api.get(`/documents/${documentId}/versions/${versionId}/download`, {
       responseType: 'blob',

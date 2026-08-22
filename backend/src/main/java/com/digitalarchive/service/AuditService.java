@@ -13,10 +13,6 @@ import java.util.Map;
 import java.util.Set;
 import java.util.UUID;
 
-/**
- * Central place that writes to audit_logs. Every other service calls this
- * instead of touching AuditLogRepository directly, so logging stays consistent.
- */
 @Service
 @RequiredArgsConstructor
 public class AuditService {

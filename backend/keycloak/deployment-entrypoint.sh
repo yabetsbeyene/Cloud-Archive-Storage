@@ -5,8 +5,6 @@ if [[ -z "${KC_HTTP_PORT:-}" && -n "${PORT:-}" ]]; then
   export KC_HTTP_PORT="${PORT}"
 fi
 
-# Some hosting environments supply postgres://user:password@host:port/database,
-# while Keycloak expects a JDBC URL and separate credentials.
 if [[ -z "${KC_DB_URL:-}" ]]; then
   if [[ -z "${DATABASE_URL:-}" ]]; then
     echo "DATABASE_URL or KC_DB_URL must be configured" >&2
@@ -57,8 +55,6 @@ export SMTP_USER="${SMTP_USER:-}"
 export SMTP_PASSWORD="${SMTP_PASSWORD:-}"
 export ARCHIVE_PASSWORD_POLICY="${ARCHIVE_PASSWORD_POLICY:-length(8) and digits(1) and lowerCase(1) and upperCase(1)}"
 
-# Google displays app passwords in four groups for readability, but SMTP
-# authentication expects the same 16 characters without whitespace.
 SMTP_PASSWORD="${SMTP_PASSWORD//[[:space:]]/}"
 export SMTP_PASSWORD
 
@@ -73,9 +69,6 @@ while IFS= read -r line || [[ -n "${line}" ]]; do
   printf '%s\n' "${line}" >> "${realm_file}"
 done < "${realm_template}"
 
-# Startup realm imports intentionally do not overwrite an existing realm. Start
-# Keycloak first, then synchronize the SMTP settings so changing environment
-# variables also updates installations that already have users and documents.
 /opt/keycloak/bin/kc.sh start --optimized --import-realm "$@" &
 keycloak_pid=$!
 

@@ -24,7 +24,6 @@ public class Document {
     @Column(name = "document_id", updatable = false, nullable = false)
     private UUID documentId;
 
-    // Populated by a trigger (see V6__create_triggers.sql) — never set from Java
     @Column(name = "reference_number", insertable = false, updatable = false)
     private String referenceNumber;
 

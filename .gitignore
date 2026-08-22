@@ -1,79 +1,47 @@
-# --- Frontend (Node / Vite) ---
-frontend/node_modules/
-frontend/dist/
-frontend/dist-ssr/
-frontend/*.local
-frontend/.env
-.env
-
-# --- Backend (Java / Maven) ---
-backend/target/
-backend/uploads/
-backend/*.iml
-backend/.idea/
-
-# --- OS / Editor ---
-.DS_Store
-.vscode/
-*.suo
-*.ntvs*
-*.njsproj
-*.sln
-*.sw?
-
-# --- Logs ---
-*.log
-npm-debug.log*
-yarn-debug.log*
-yarn-error.log*
-pnpm-debug.log*
-lerna-debug.log*
 # Environment files
 .env
 .env.*
 !.env.example
 
-# Node / frontend dependencies
+# Dependencies and package-manager data
 node_modules/
-**/node_modules/
 .npm/
 .pnpm-store/
 
-# Build output
+# Build output and compiled artifacts
 build/
 dist/
 out/
 coverage/
-*.tsbuildinfo
-
-# Java / backend build artifacts
 **/target/
 **/bin/
-**/out/
 *.class
 *.jar
 *.war
+*.tsbuildinfo
 
-# IDE / editor files
+# Local application data
+backend/uploads/
+backend/storage/
+*.sqlite
+*.sqlite3
+*.pid
+.tmp/
+temp/
+
+# IDE and operating-system files
 .vscode/
 .idea/
 *.iml
 .DS_Store
 Thumbs.db
+._*
 
 # Logs
 logs/
 *.log
 npm-debug.log*
 yarn-debug.log*
+yarn-error.log*
 pnpm-debug.log*
-
-# OS files
-._*
-
-# Local database / temp files
-*.sqlite
-*.sqlite3
-*.pid
-.tmp/
-temp/
+lerna-debug.log*
