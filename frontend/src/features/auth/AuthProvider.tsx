@@ -10,7 +10,7 @@ let keycloakInitialization: Promise<boolean> | undefined
 function initializeKeycloak(): Promise<boolean> {
   keycloakInitialization ??= keycloak.init({
     onLoad: 'check-sso',
-    silentCheckSsoRedirectUri: `${window.location.origin}/silent-check-sso.html`,
+    checkLoginIframe: false,
     pkceMethod: 'S256',
   })
 

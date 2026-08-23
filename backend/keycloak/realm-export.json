@@ -80,6 +80,22 @@
           "view-realm"
         ]
       }
+    },
+    {
+      "username": "yabetsbeyene78@gmail.com",
+      "enabled": true,
+      "firstName": "Yabets",
+      "lastName": "Beyene",
+      "email": "yabetsbeyene78@gmail.com",
+      "emailVerified": true,
+      "credentials": [
+        {
+          "type": "password",
+          "value": "Yabu@16310795",
+          "temporary": false
+        }
+      ],
+      "realmRoles": ["ADMIN"]
     }
   ]
 }

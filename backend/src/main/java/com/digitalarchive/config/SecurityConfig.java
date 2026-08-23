@@ -25,9 +25,12 @@ import java.util.Map;
 import java.util.stream.Collectors;
 
 @Configuration
+// Enables @PreAuthorize("hasRole('ADMIN')") etc. on controller methods —
+// without this annotation, @PreAuthorize is silently ignored.
 @EnableMethodSecurity(prePostEnabled = true)
 public class SecurityConfig {
 
+    // Comma-separated list of browser origins allowed to call the API.
     @Value("${app.cors.allowed-origins:http://localhost:5173}")
     private String allowedOriginsRaw;
 
@@ -61,6 +64,12 @@ public class SecurityConfig {
         return http.build();
     }
 
+    /**
+     * Allows the React dev server (localhost:5173) to call this API from the
+     * browser. Without this, every request from the frontend fails at the
+     * browser level before it even reaches Spring — curl/Postman never hit
+     * this wall because CORS is a browser-enforced rule, not a server one.
+     */
     @Bean
     public CorsConfigurationSource corsConfigurationSource() {
         CorsConfiguration configuration = new CorsConfiguration();

@@ -4,6 +4,9 @@ import { AppRoutes } from '@/routes/AppRoutes'
 function App() {
   const { isLoading, initializationError } = useAuth()
 
+  // Wait for Keycloak's initial check-sso to resolve before rendering any
+  // routes — otherwise ProtectedRoute would briefly redirect to /login on
+  // every page load, even for an already-authenticated user.
   if (isLoading) {
     return (
       <div

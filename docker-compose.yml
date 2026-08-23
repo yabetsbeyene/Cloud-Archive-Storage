@@ -8,7 +8,7 @@ services:
       POSTGRES_USER: archive_app
       POSTGRES_PASSWORD: ${DB_PASSWORD:?Set DB_PASSWORD in .env}
     ports:
-      - "${POSTGRES_PORT:-5533}:5432"
+      - "5533:5432"
     volumes:
       - archive_pg_data:/var/lib/postgresql/data
     healthcheck:
@@ -56,9 +56,9 @@ services:
       KC_BOOTSTRAP_ADMIN_USERNAME: admin
       KC_BOOTSTRAP_ADMIN_PASSWORD: ${KEYCLOAK_ADMIN_PASSWORD:?Set KEYCLOAK_ADMIN_PASSWORD in .env}
       KC_HTTP_PORT: 8080
-      KC_HOSTNAME: ${APP_PUBLIC_URL:-http://localhost:5173}/auth
+      KC_HOSTNAME: http://localhost:5173/auth
       KC_HTTP_RELATIVE_PATH: /auth
-      FRONTEND_URL: ${APP_PUBLIC_URL:-http://localhost:5173}
+      FRONTEND_URL: http://localhost:5173
       KEYCLOAK_ADMIN_CLIENT_SECRET: ${KEYCLOAK_ADMIN_CLIENT_SECRET:?Set KEYCLOAK_ADMIN_CLIENT_SECRET in .env}
       SMTP_HOST: ${SMTP_HOST:-mailpit}
       SMTP_PORT: ${SMTP_PORT:-1025}
@@ -87,16 +87,16 @@ services:
       DB_NAME: digital_archive
       DB_USER: archive_app
       DB_PASSWORD: ${DB_PASSWORD:?Set DB_PASSWORD in .env}
-      KEYCLOAK_ISSUER_URI: ${APP_PUBLIC_URL:-http://localhost:5173}/auth/realms/digital-archive
+      KEYCLOAK_ISSUER_URI: http://localhost:5173/auth/realms/digital-archive
       KEYCLOAK_JWK_SET_URI: http://keycloak:8080/auth/realms/digital-archive/protocol/openid-connect/certs
       KEYCLOAK_ADMIN_URL: http://keycloak:8080/auth
       KEYCLOAK_ADMIN_REALM: digital-archive
       KEYCLOAK_ADMIN_CLIENT_ID: archive-backend-admin
       KEYCLOAK_ADMIN_CLIENT_SECRET: ${KEYCLOAK_ADMIN_CLIENT_SECRET:?Set KEYCLOAK_ADMIN_CLIENT_SECRET in .env}
       KEYCLOAK_FRONTEND_CLIENT_ID: archive-frontend
-      FRONTEND_URL: ${APP_PUBLIC_URL:-http://localhost:5173}
+      FRONTEND_URL: http://localhost:5173
       INVITATION_LIFESPAN_SECONDS: 43200
-      CORS_ALLOWED_ORIGINS: ${APP_PUBLIC_URL:-http://localhost:5173}
+      CORS_ALLOWED_ORIGINS: http://localhost:5173
       FILE_STORAGE_LOCATION: /app/storage
       PORT: 8080
     volumes:
@@ -113,13 +113,13 @@ services:
       dockerfile: Dockerfile
       args:
         VITE_API_BASE_URL: /api
-        VITE_KEYCLOAK_URL: ${APP_PUBLIC_URL:-http://localhost:5173}/auth
+        VITE_KEYCLOAK_URL: http://localhost:5173/auth
         VITE_KEYCLOAK_REALM: digital-archive
         VITE_KEYCLOAK_CLIENT_ID: archive-frontend
     container_name: archive-frontend
     restart: unless-stopped
     ports:
-      - "${FRONTEND_PORT:-5173}:80"
+      - "5173:80"
     depends_on:
       - backend
       - keycloak

@@ -1,6 +1,9 @@
 #!/bin/sh
 set -eu
 
+# Hosting platforms can provide a postgresql:// URL with embedded credentials.
+# Spring's PostgreSQL driver expects jdbc:postgresql:// and receives
+# credentials through separate environment variables.
 if [ -n "${DATABASE_URL:-}" ] && [ -z "${SPRING_DATASOURCE_URL:-}" ]; then
   connection_without_scheme="${DATABASE_URL#*://}"
   host_and_database="${connection_without_scheme##*@}"
