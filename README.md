@@ -61,23 +61,6 @@ The frontend, backend API, and Keycloak are all available through this address.
 
 ## Demo accounts
 
-| Account | Password | Role |
-|---|---|---|
-| `admin.user` | `ArchiveAdmin123!` | `ADMIN` |
-| `dept.user` | `ArchiveDept123!` | `DEPT_USER` |
-
-Keycloak administration is available at:
-
-```text
-http://localhost:5173/auth/admin
-```
-
-Local Keycloak administrator:
-
-```text
-Username: admin
-Password: admin
-```
 
 These credentials are for local development only.
 
