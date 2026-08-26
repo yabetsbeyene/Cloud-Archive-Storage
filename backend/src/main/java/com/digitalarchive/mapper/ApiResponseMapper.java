@@ -79,6 +79,7 @@ public class ApiResponseMapper {
                 document.getDescription(),
                 toCategoryResponse(document.getCategory()),
                 toDepartmentResponse(document.getDepartment()),
+                document.getOtherDepartmentName(),
                 document.getClassification(),
                 document.getStatus(),
                 toVersionResponse(document.getCurrentVersion()),
@@ -109,6 +110,9 @@ public class ApiResponseMapper {
                 history.getFromStatus(),
                 history.getToStatus(),
                 history.getComment(),
+                history.getAmendmentSections(),
+                history.getAmendmentComment(),
+                history.getRejectionReason(),
                 history.getChangedAt(),
                 history.getChangedBy());
     }

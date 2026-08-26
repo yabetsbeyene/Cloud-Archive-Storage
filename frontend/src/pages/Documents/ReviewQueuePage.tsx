@@ -90,7 +90,7 @@ export function ReviewQueuePage() {
                   </div>
                   <h2 className="mt-2 truncate text-base font-semibold text-slate-950">{document.title}</h2>
                   <p className="mt-1 text-sm text-slate-600">
-                    {document.referenceNumber || 'Reference pending'} · {document.category.name} · {document.department.name}
+                    {document.referenceNumber || 'Reference pending'} · {document.category.name} · {document.department?.name ?? document.otherDepartmentName ?? 'Other'}
                   </p>
                 <p className="mt-1 text-xs text-slate-500">
                   Submitted {formatDate(document.createdAt)} · {document.currentVersion ? `Version ${document.currentVersion.versionNumber}` : 'No file version'}

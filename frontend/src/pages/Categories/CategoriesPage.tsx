@@ -164,7 +164,7 @@ export function CategoriesPage() {
 
       <Modal isOpen={canManage && isFormOpen} onClose={closeForm} title={editing ? 'Edit category' : 'New category'}>
         <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
-          <Input label="Name" {...register('name')} error={errors.name?.message} />
+          <Input label="Name" placeholder="e.g. Finance, Legal, Other" {...register('name')} error={errors.name?.message} />
           <Input label="Description" {...register('description')} error={errors.description?.message} />
           <Input
             label="Retention period (months)"

@@ -66,7 +66,8 @@ public class DocumentController {
         DocumentResponse created = documentService.createDocument(
                 request,
                 actorId(jwt),
-                hasRealmRole(jwt, "ADMIN"));
+                hasRealmRole(jwt, "ADMIN"),
+                jwt);
         return ResponseEntity.status(HttpStatus.CREATED).body(created);
     }
 

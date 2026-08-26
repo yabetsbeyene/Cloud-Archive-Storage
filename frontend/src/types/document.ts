@@ -18,7 +18,8 @@ export interface Document {
   title: string
   description: string | null
   category: Category
-  department: Department
+  department: Department | null
+  otherDepartmentName: string | null
   classification: ClassificationLevel
   status: DocumentStatus
   currentVersion: DocumentVersion | null
@@ -39,7 +40,8 @@ export interface CreateDocumentInput {
   title: string
   description?: string
   categoryId: string
-  departmentId: string
+  departmentId?: string
+  otherDepartmentName?: string
   classification?: ClassificationLevel
 }
 

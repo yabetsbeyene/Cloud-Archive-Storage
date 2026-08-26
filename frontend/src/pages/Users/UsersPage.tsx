@@ -32,6 +32,10 @@ const userSchema = z.object({
   role: z.enum(['ADMIN', 'ARCHIVIST', 'MANAGER', 'DEPT_USER', 'VIEWER']),
   departmentId: z.string().optional(),
   isActive: z.boolean(),
+}).superRefine((values, context) => {
+  if (values.role === 'MANAGER' && !values.departmentId) {
+    context.addIssue({ code: z.ZodIssueCode.custom, path: ['departmentId'], message: 'A department is required for managers' })
+  }
 })
 
 type UserFormValues = z.infer<typeof userSchema>
@@ -39,6 +43,8 @@ type UserFormValues = z.infer<typeof userSchema>
 export function UsersPage() {
   const { user: authUser, hasRole } = useAuth()
   const isAdmin = hasRole('ADMIN')
+  const isManager = hasRole('MANAGER')
+  const canManageUsers = isAdmin || isManager
   const queryClient = useQueryClient()
   const [search, setSearch] = useState('')
   const [editing, setEditing] = useState<ManagedUser | null>(null)
@@ -54,12 +60,12 @@ export function UsersPage() {
   const usersQuery = useQuery({
     queryKey: ['users'],
     queryFn: usersApi.list,
-    enabled: isAdmin,
+    enabled: canManageUsers,
   })
   const departmentsQuery = useQuery({
     queryKey: ['departments'],
     queryFn: departmentsApi.list,
-    enabled: isAdmin,
+    enabled: canManageUsers,
   })
 
   const {
@@ -177,7 +183,7 @@ export function UsersPage() {
         title="User management"
         description="Review your application profile and manage the people linked to Keycloak."
         action={
-          isAdmin ? (
+          canManageUsers ? (
             <Button onClick={openCreate}>
               <Plus size={17} aria-hidden="true" />
               Create user
@@ -250,18 +256,19 @@ export function UsersPage() {
         )}
       </section>
 
-      {!isAdmin && (
+      {!canManageUsers && (
         <section className="mt-6 rounded-xl border border-slate-200 bg-white px-5 py-8 text-center">
           <ShieldCheck className="mx-auto text-slate-400" size={28} aria-hidden="true" />
-          <h2 className="mt-3 font-semibold text-slate-950">Administrator access required</h2>
+          <h2 className="mt-3 font-semibold text-slate-950">User management access required</h2>
           <p className="mx-auto mt-1 max-w-lg text-sm leading-6 text-slate-600">
             Your profile is available above. The organization-wide user directory and account
-            controls are restricted to administrators.
+            controls are restricted to administrators and department managers. Managers can only
+            create and manage regular users assigned to their own department.
           </p>
         </section>
       )}
 
-      {isAdmin && (
+      {canManageUsers && (
         <section className="mt-6">
           <div className="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
             <div>
@@ -401,15 +408,19 @@ export function UsersPage() {
           <SelectField label="Application role" {...register('role')} error={errors.role?.message}>
             <option value="VIEWER">Viewer — read-only access</option>
             <option value="DEPT_USER">Department user — create and edit documents</option>
-            <option value="MANAGER">Manager — review and approve documents</option>
-            <option value="ARCHIVIST">Archivist — archive and records administration</option>
-            <option value="ADMIN">Administrator — full system access</option>
+            {isAdmin && <>
+              <option value="MANAGER">Manager — review and approve documents</option>
+              <option value="ARCHIVIST">Archivist — archive and records administration</option>
+              <option value="ADMIN">Administrator — full system access</option>
+            </>}
           </SelectField>
           <SelectField label="Department" {...register('departmentId')} error={errors.departmentId?.message}>
-            <option value="">Unassigned</option>
-            {(departmentsQuery.data ?? []).map((department) => (
+            {!isManager && <option value="">Unassigned</option>}
+            {(departmentsQuery.data ?? [])
+              .filter((department) => !isManager || department.departmentId === profileQuery.data?.department?.departmentId)
+              .map((department) => (
               <option key={department.departmentId} value={department.departmentId}>{department.name}</option>
-            ))}
+              ))}
           </SelectField>
           {editing && (
             <label className="flex items-start gap-3 rounded-lg bg-slate-50 p-3 text-sm text-slate-700">

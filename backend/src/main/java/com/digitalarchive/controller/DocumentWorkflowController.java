@@ -33,42 +33,54 @@ public class DocumentWorkflowController {
         public DocumentResponse submit(@PathVariable UUID documentId,
                         @Valid @RequestBody(required = false) TransitionRequest request,
                         @AuthenticationPrincipal Jwt jwt) {
-                return workflowService.transition(documentId, DocumentStatus.SUBMITTED,
-                                request != null ? request.getComment() : null, UUID.fromString(jwt.getSubject()));
+                return workflowService.transition(documentId, DocumentStatus.SUBMITTED, request, UUID.fromString(jwt.getSubject()));
         }
 
         @PostMapping("/start-review")
-        @PreAuthorize("hasAnyRole('ADMIN', 'ARCHIVIST', 'MANAGER')")
+        @PreAuthorize("hasRole('MANAGER')")
         public DocumentResponse startReview(@PathVariable UUID documentId,
                         @Valid @RequestBody(required = false) TransitionRequest request,
                         @AuthenticationPrincipal Jwt jwt) {
-                return workflowService.transition(documentId, DocumentStatus.UNDER_REVIEW,
-                                request != null ? request.getComment() : null, UUID.fromString(jwt.getSubject()));
+                return workflowService.transition(documentId, DocumentStatus.UNDER_REVIEW, request, UUID.fromString(jwt.getSubject()));
         }
 
         @PostMapping("/approve")
-        @PreAuthorize("hasAnyRole('ADMIN', 'MANAGER')")
+        @PreAuthorize("hasRole('MANAGER')")
         public DocumentResponse approve(@PathVariable UUID documentId,
                         @Valid @RequestBody(required = false) TransitionRequest request,
                         @AuthenticationPrincipal Jwt jwt) {
-                return workflowService.transition(documentId, DocumentStatus.APPROVED,
-                                request != null ? request.getComment() : null, UUID.fromString(jwt.getSubject()));
+                return workflowService.transition(documentId, DocumentStatus.APPROVED, request, UUID.fromString(jwt.getSubject()));
         }
 
         @PostMapping("/reject")
-        @PreAuthorize("hasAnyRole('ADMIN', 'MANAGER')")
+        @PreAuthorize("hasRole('MANAGER')")
         public DocumentResponse reject(@PathVariable UUID documentId, @Valid @RequestBody TransitionRequest request,
                         @AuthenticationPrincipal Jwt jwt) {
                 return workflowService.transition(documentId, DocumentStatus.REJECTED,
-                                request.getComment(), UUID.fromString(jwt.getSubject()));
+                                request, UUID.fromString(jwt.getSubject()));
+        }
+
+        @PostMapping("/amend")
+        @PreAuthorize("hasRole('MANAGER')")
+        public DocumentResponse amend(@PathVariable UUID documentId, @Valid @RequestBody TransitionRequest request,
+                        @AuthenticationPrincipal Jwt jwt) {
+                return workflowService.transition(documentId, DocumentStatus.DRAFT, request,
+                                UUID.fromString(jwt.getSubject()));
+        }
+
+        @PostMapping("/begin-edit")
+        @PreAuthorize("hasAnyRole('ADMIN', 'ARCHIVIST', 'DEPT_USER')")
+        public DocumentResponse beginEdit(@PathVariable UUID documentId,
+                        @AuthenticationPrincipal Jwt jwt) {
+                return workflowService.transition(documentId, DocumentStatus.DRAFT, null,
+                                UUID.fromString(jwt.getSubject()));
         }
 
         @PostMapping("/archive")
-        @PreAuthorize("hasAnyRole('ADMIN', 'ARCHIVIST')")
+        @PreAuthorize("hasRole('ARCHIVIST')")
         public DocumentResponse archive(@PathVariable UUID documentId,
                         @Valid @RequestBody(required = false) TransitionRequest request,
                         @AuthenticationPrincipal Jwt jwt) {
-                return workflowService.transition(documentId, DocumentStatus.ARCHIVED,
-                                request != null ? request.getComment() : null, UUID.fromString(jwt.getSubject()));
+                return workflowService.transition(documentId, DocumentStatus.ARCHIVED, request, UUID.fromString(jwt.getSubject()));
         }
 }

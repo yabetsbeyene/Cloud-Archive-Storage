@@ -135,7 +135,7 @@ export function DocumentDetailPage() {
             </div>
             <dl className="grid sm:grid-cols-2">
               <Metadata label="Category" value={document.category.name} />
-              <Metadata label="Department" value={document.department.name} />
+              <Metadata label="Department" value={document.department?.name ?? document.otherDepartmentName ?? 'Other'} />
               <Metadata label="Classification" value={document.classification} />
               <Metadata label="Reference" value={document.referenceNumber || 'Pending'} />
               <Metadata label="Created" value={formatDateTime(document.createdAt)} />

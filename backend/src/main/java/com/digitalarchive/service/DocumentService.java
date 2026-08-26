@@ -61,14 +61,37 @@ public class DocumentService {
     public DocumentResponse createDocument(
             CreateDocumentRequest request,
             UUID createdByUserSub,
-            boolean administrator) {
+            boolean administrator,
+            Jwt jwt) {
+        DocumentAccessService.AccessContext access = documentAccessService.context(jwt);
+        if (request.getClassification() != null && !access.has(com.digitalarchive.domain.enums.ApplicationRole.ARCHIVIST)) {
+            throw new org.springframework.security.access.AccessDeniedException(
+                    "Only an archive officer may set document classification");
+        }
         Category category = categoryRepository.findById(request.getCategoryId())
                 .filter(existing -> existing.getDeletedAt() == null)
                 .orElseThrow(() -> new ResourceNotFoundException("Category not found: " + request.getCategoryId()));
 
-        Department department = departmentRepository.findById(request.getDepartmentId())
-                .filter(existing -> existing.getDeletedAt() == null)
-                .orElseThrow(() -> new ResourceNotFoundException("Department not found: " + request.getDepartmentId()));
+        boolean hasOtherDepartment = request.getOtherDepartmentName() != null
+                && !request.getOtherDepartmentName().isBlank();
+        if (request.getDepartmentId() == null && !hasOtherDepartment) {
+            throw new IllegalArgumentException("Choose a department or provide an other department name");
+        }
+        if (request.getDepartmentId() != null && hasOtherDepartment) {
+            throw new IllegalArgumentException("Choose either a listed department or an other department name");
+        }
+        if (access.has(com.digitalarchive.domain.enums.ApplicationRole.DEPT_USER)
+                && !access.hasAny(com.digitalarchive.domain.enums.ApplicationRole.ADMIN,
+                        com.digitalarchive.domain.enums.ApplicationRole.ARCHIVIST)
+                && (request.getDepartmentId() == null || !request.getDepartmentId().equals(access.departmentId()))) {
+            throw new org.springframework.security.access.AccessDeniedException(
+                    "Department users may only submit documents to their own department");
+        }
+
+        Department department = request.getDepartmentId() == null ? null
+                : departmentRepository.findById(request.getDepartmentId())
+                        .filter(existing -> existing.getDeletedAt() == null)
+                        .orElseThrow(() -> new ResourceNotFoundException("Department not found: " + request.getDepartmentId()));
 
         DocumentStatus initialStatus = administrator
                 ? DocumentStatus.ARCHIVED
@@ -82,6 +105,7 @@ public class DocumentService {
                 .description(request.getDescription())
                 .category(category)
                 .department(department)
+                .otherDepartmentName(hasOtherDepartment ? request.getOtherDepartmentName().trim() : null)
                 .classification(request.getClassification() != null
                         ? request.getClassification()
                         : ClassificationLevel.INTERNAL)
@@ -135,6 +159,10 @@ public class DocumentService {
 
     public List<DocumentResponse> listReviewQueue(Jwt jwt) {
         DocumentAccessService.AccessContext access = documentAccessService.context(jwt);
+        if (access.has(com.digitalarchive.domain.enums.ApplicationRole.MANAGER)
+                && access.departmentId() == null) {
+            return List.of();
+        }
         return documentRepository
                 .findByStatusInAndDeletedAtIsNullOrderByCreatedAtDesc(
                         List.of(
@@ -142,6 +170,9 @@ public class DocumentService {
                                 DocumentStatus.UNDER_REVIEW,
                                 DocumentStatus.APPROVED))
                 .stream()
+                .filter(d -> !access.has(com.digitalarchive.domain.enums.ApplicationRole.MANAGER)
+                        || (d.getDepartment() != null
+                                && d.getDepartment().getDepartmentId().equals(access.departmentId())))
                 .filter(d -> documentAccessService.canRead(d, access))
                 .map(responseMapper::toDocumentResponse)
                 .toList();
@@ -177,6 +208,10 @@ public class DocumentService {
         DocumentAccessService.AccessContext access = documentAccessService.context(jwt);
         return findActiveEntity(id).map(existing -> {
             documentAccessService.requireWrite(existing, access);
+            if (request.getClassification() != null && !access.has(com.digitalarchive.domain.enums.ApplicationRole.ARCHIVIST)) {
+                throw new org.springframework.security.access.AccessDeniedException(
+                        "Only an archive officer may change document classification");
+            }
             if (request.getTitle() != null) {
                 existing.setTitle(request.getTitle());
             }

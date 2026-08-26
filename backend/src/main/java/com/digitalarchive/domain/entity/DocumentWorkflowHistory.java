@@ -40,6 +40,15 @@ public class DocumentWorkflowHistory {
     @Column(name = "comment", columnDefinition = "text")
     private String comment;
 
+    @Column(name = "amendment_sections", columnDefinition = "text")
+    private String amendmentSections;
+
+    @Column(name = "amendment_comment", columnDefinition = "text")
+    private String amendmentComment;
+
+    @Column(name = "rejection_reason", columnDefinition = "text")
+    private String rejectionReason;
+
     @Column(name = "changed_at", insertable = false, updatable = false)
     private OffsetDateTime changedAt;
 

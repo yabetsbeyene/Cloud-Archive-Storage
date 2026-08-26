@@ -290,7 +290,7 @@ export function DashboardPage() {
                         </p>
                         <p className="mt-1 truncate text-xs text-slate-500">
                           {document.referenceNumber || 'Reference pending'} ·{' '}
-                          {document.department.name} · {formatDate(document.createdAt)}
+                          {document.department?.name ?? document.otherDepartmentName ?? 'Other'} · {formatDate(document.createdAt)}
                         </p>
                       </div>
                       <DocumentStatusBadge status={document.status} />

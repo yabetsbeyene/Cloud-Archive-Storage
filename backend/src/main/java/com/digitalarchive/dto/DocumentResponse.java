@@ -13,6 +13,7 @@ public record DocumentResponse(
         String description,
         CategoryResponse category,
         DepartmentResponse department,
+        String otherDepartmentName,
         ClassificationLevel classification,
         DocumentStatus status,
         DocumentVersionResponse currentVersion,

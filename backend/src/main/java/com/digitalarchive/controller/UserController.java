@@ -43,15 +43,15 @@ public class UserController {
     }
 
     @GetMapping
-    @PreAuthorize("hasRole('ADMIN')")
-    public List<ManagedUserResponse> listAll() {
-        return managedUserService.list();
+    @PreAuthorize("hasAnyRole('ADMIN', 'MANAGER')")
+    public List<ManagedUserResponse> listAll(@AuthenticationPrincipal Jwt jwt) {
+        return managedUserService.list(jwt);
     }
 
     @GetMapping("/{sub}")
-    @PreAuthorize("hasRole('ADMIN')")
-    public ManagedUserResponse getBySub(@PathVariable UUID sub) {
-        return managedUserService.get(sub);
+    @PreAuthorize("hasAnyRole('ADMIN', 'MANAGER')")
+    public ManagedUserResponse getBySub(@PathVariable UUID sub, @AuthenticationPrincipal Jwt jwt) {
+        return managedUserService.get(sub, jwt);
     }
 
     @GetMapping("/{sub}/profile-picture")
@@ -60,38 +60,38 @@ public class UserController {
     }
 
     @PostMapping
-    @PreAuthorize("hasRole('ADMIN')")
+    @PreAuthorize("hasAnyRole('ADMIN', 'MANAGER')")
     public ResponseEntity<ManagedUserResponse> create(
             @Valid @RequestBody CreateManagedUserRequest request,
             @AuthenticationPrincipal Jwt jwt) {
-        ManagedUserResponse created = managedUserService.create(request, actorId(jwt));
+        ManagedUserResponse created = managedUserService.create(request, actorId(jwt), jwt);
         return ResponseEntity.status(HttpStatus.CREATED).body(created);
     }
 
     @PutMapping("/{sub}")
-    @PreAuthorize("hasRole('ADMIN')")
+    @PreAuthorize("hasAnyRole('ADMIN', 'MANAGER')")
     public ManagedUserResponse update(
             @PathVariable UUID sub,
             @Valid @RequestBody UpdateManagedUserRequest request,
             @AuthenticationPrincipal Jwt jwt) {
-        return managedUserService.update(sub, request, actorId(jwt));
+        return managedUserService.update(sub, request, actorId(jwt), jwt);
     }
 
     @DeleteMapping("/{sub}")
-    @PreAuthorize("hasRole('ADMIN')")
+    @PreAuthorize("hasAnyRole('ADMIN', 'MANAGER')")
     public ResponseEntity<Void> deactivate(
             @PathVariable UUID sub,
             @AuthenticationPrincipal Jwt jwt) {
-        managedUserService.deactivate(sub, actorId(jwt));
+        managedUserService.deactivate(sub, actorId(jwt), jwt);
         return ResponseEntity.noContent().build();
     }
 
     @DeleteMapping("/{sub}/permanent")
-    @PreAuthorize("hasRole('ADMIN')")
+    @PreAuthorize("hasAnyRole('ADMIN', 'MANAGER')")
     public ResponseEntity<Void> deletePermanently(
             @PathVariable UUID sub,
             @AuthenticationPrincipal Jwt jwt) {
-        managedUserService.deletePermanently(sub, actorId(jwt));
+        managedUserService.deletePermanently(sub, actorId(jwt), jwt);
         return ResponseEntity.noContent().build();
     }
 

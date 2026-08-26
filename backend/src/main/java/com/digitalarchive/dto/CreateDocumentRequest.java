@@ -20,8 +20,10 @@ public class CreateDocumentRequest {
     @NotNull
     private UUID categoryId;
 
-    @NotNull
     private UUID departmentId;
+
+    @Size(max = 150)
+    private String otherDepartmentName;
 
     private ClassificationLevel classification;
 }

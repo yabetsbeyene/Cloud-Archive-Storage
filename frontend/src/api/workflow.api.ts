@@ -18,6 +18,10 @@ export const workflowApi = {
     api.post<Document>(`/documents/${documentId}/workflow/approve`, input ?? {}).then((r) => r.data),
   reject: (documentId: string, input: TransitionInput) =>
     api.post<Document>(`/documents/${documentId}/workflow/reject`, input).then((r) => r.data),
+  amend: (documentId: string, input: TransitionInput) =>
+    api.post<Document>(`/documents/${documentId}/workflow/amend`, input).then((r) => r.data),
+  beginEdit: (documentId: string) =>
+    api.post<Document>(`/documents/${documentId}/workflow/begin-edit`, {}).then((r) => r.data),
   archive: (documentId: string, input?: TransitionInput) =>
     api.post<Document>(`/documents/${documentId}/workflow/archive`, input ?? {}).then((r) => r.data),
 }

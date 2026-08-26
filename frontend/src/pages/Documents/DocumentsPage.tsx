@@ -98,7 +98,8 @@ export function DocumentsPage() {
           document.referenceNumber,
           document.description,
           document.category.name,
-          document.department.name,
+          document.department?.name,
+          document.otherDepartmentName,
         ]
           .filter(Boolean)
           .join(' ')
@@ -107,7 +108,7 @@ export function DocumentsPage() {
           (!deferredQuery || searchable.includes(deferredQuery)) &&
           (!status || document.status === status) &&
           (!categoryId || document.category.categoryId === categoryId) &&
-          (!departmentId || document.department.departmentId === departmentId) &&
+          (!departmentId || document.department?.departmentId === departmentId) &&
           (!classification || document.classification === classification)
         )
       })
@@ -355,7 +356,7 @@ export function DocumentsPage() {
                       <DocumentStatusBadge status={document.status} />
                     </td>
                     <td className="truncate px-4 py-4 text-slate-600">
-                      {document.department.name}
+                      {document.department?.name ?? document.otherDepartmentName ?? 'Other'}
                     </td>
                     <td className={`px-4 py-4 text-xs font-medium ${classificationStyles[document.classification]}`}>
                       {formatEnumLabel(document.classification)}
@@ -394,7 +395,7 @@ export function DocumentsPage() {
                 <dl className="mt-4 grid grid-cols-2 gap-3 text-xs">
                   <div>
                     <dt className="text-slate-500">Department</dt>
-                    <dd className="mt-1 font-medium text-slate-700">{document.department.name}</dd>
+                    <dd className="mt-1 font-medium text-slate-700">{document.department?.name ?? document.otherDepartmentName ?? 'Other'}</dd>
                   </div>
                   <div>
                     <dt className="text-slate-500">Classification</dt>

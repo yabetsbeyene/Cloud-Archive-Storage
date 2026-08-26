@@ -13,6 +13,7 @@ import {
 } from 'lucide-react'
 import { Link, useNavigate } from 'react-router-dom'
 import { categoriesApi } from '@/api/categories.api'
+import { accountApi } from '@/api/account.api'
 import { departmentsApi } from '@/api/departments.api'
 import { documentsApi } from '@/api/documents.api'
 import { getApiErrorMessage } from '@/api/error-message'
@@ -34,7 +35,12 @@ const schema = z.object({
   description: z.string().max(10_000, 'Description is too long').optional(),
   categoryId: z.string().min(1, 'Choose a category'),
   departmentId: z.string().min(1, 'Choose a department'),
+  otherDepartmentName: z.string().trim().max(150, 'Department name is too long').optional(),
   classification: z.enum(['PUBLIC', 'INTERNAL', 'CONFIDENTIAL', 'SECRET']),
+}).superRefine((values, context) => {
+  if (values.departmentId === '__OTHER__' && !values.otherDepartmentName) {
+    context.addIssue({ code: z.ZodIssueCode.custom, path: ['otherDepartmentName'], message: 'Type the department name' })
+  }
 })
 
 type FormValues = z.infer<typeof schema>
@@ -54,6 +60,9 @@ export function UploadPage() {
   const navigate = useNavigate()
   const queryClient = useQueryClient()
   const { hasRole } = useAuth()
+  const isArchivist = hasRole('ARCHIVIST')
+  const isAdmin = hasRole('ADMIN')
+  const canUseOtherDepartment = isAdmin || isArchivist
   const [file, setFile] = useState<File | null>(null)
   const [fileError, setFileError] = useState<string | null>(null)
   const [uploadProgress, setUploadProgress] = useState(0)
@@ -72,10 +81,16 @@ export function UploadPage() {
     queryFn: departmentsApi.list,
     enabled: canCreate,
   })
+  const accountQuery = useQuery({
+    queryKey: ['account'],
+    queryFn: accountApi.get,
+    enabled: hasRole('DEPT_USER'),
+  })
 
   const {
     register,
     handleSubmit,
+    watch,
     formState: { errors },
   } = useForm<FormValues>({
     resolver: zodResolver(schema),
@@ -85,6 +100,7 @@ export function UploadPage() {
       categoryId: '',
       departmentId: '',
       classification: 'INTERNAL',
+      otherDepartmentName: '',
     },
   })
 
@@ -99,8 +115,9 @@ export function UploadPage() {
           title: values.title,
           description: values.description || undefined,
           categoryId: values.categoryId,
-          departmentId: values.departmentId,
-          classification: values.classification,
+          departmentId: values.departmentId === '__OTHER__' ? undefined : values.departmentId,
+          otherDepartmentName: values.departmentId === '__OTHER__' ? values.otherDepartmentName : undefined,
+          classification: isArchivist ? values.classification : undefined,
         }))
 
       try {
@@ -171,11 +188,12 @@ export function UploadPage() {
     )
   }
 
-  const referencesLoading = categoriesQuery.isLoading || departmentsQuery.isLoading
+  const referencesLoading = categoriesQuery.isLoading || departmentsQuery.isLoading || accountQuery.isLoading
   const referencesFailed = categoriesQuery.isError || departmentsQuery.isError
   const referencesEmpty =
     !referencesLoading &&
-    ((categoriesQuery.data?.length ?? 0) === 0 || (departmentsQuery.data?.length ?? 0) === 0)
+    ((categoriesQuery.data?.length ?? 0) === 0
+      || ((departmentsQuery.data?.length ?? 0) === 0 && !canUseOtherDepartment))
   const mutationError =
     createMutation.error instanceof InitialUploadError
       ? getApiErrorMessage(
@@ -263,11 +281,12 @@ export function UploadPage() {
                 error={errors.categoryId?.message}
               >
                 <option value="">Select category</option>
-                {(categoriesQuery.data ?? []).map((category) => (
+                {(categoriesQuery.data ?? []).filter(category => category.name.toLowerCase() !== 'other').map((category) => (
                   <option key={category.categoryId} value={category.categoryId}>
                     {category.name}
                   </option>
                 ))}
+                {(categoriesQuery.data ?? []).some(category => category.name.toLowerCase() === 'other') && <option value={(categoriesQuery.data ?? []).find(category => category.name.toLowerCase() === 'other')?.categoryId}>Other — use for another document type</option>}
               </SelectField>
               <SelectField
                 label="Department"
@@ -275,15 +294,27 @@ export function UploadPage() {
                 error={errors.departmentId?.message}
               >
                 <option value="">Select department</option>
-                {(departmentsQuery.data ?? []).map((department) => (
+                {(departmentsQuery.data ?? [])
+                  .filter((department) => !hasRole('DEPT_USER') || department.departmentId === accountQuery.data?.department?.departmentId)
+                  .map((department) => (
                   <option key={department.departmentId} value={department.departmentId}>
                     {department.name}
                   </option>
-                ))}
+                  ))}
+                {canUseOtherDepartment && <option value="__OTHER__">Other department</option>}
               </SelectField>
             </div>
 
-            <SelectField
+            {canUseOtherDepartment && watch('departmentId') === '__OTHER__' && (
+              <Input
+                label="Other department name"
+                placeholder="Type the department name"
+                {...register('otherDepartmentName')}
+                error={errors.otherDepartmentName?.message}
+              />
+            )}
+
+            {isArchivist && <SelectField
               label="Classification"
               {...register('classification')}
               error={errors.classification?.message}
@@ -292,7 +323,7 @@ export function UploadPage() {
               <option value="INTERNAL">Internal — standard organizational access</option>
               <option value="CONFIDENTIAL">Confidential — restricted business information</option>
               <option value="SECRET">Secret — highest access restriction</option>
-            </SelectField>
+            </SelectField>}
           </fieldset>
         </section>
 

@@ -11,6 +11,9 @@ public record WorkflowHistoryResponse(
         DocumentStatus fromStatus,
         DocumentStatus toStatus,
         String comment,
+        String amendmentSections,
+        String amendmentComment,
+        String rejectionReason,
         OffsetDateTime changedAt,
         UUID changedBy) {
 }

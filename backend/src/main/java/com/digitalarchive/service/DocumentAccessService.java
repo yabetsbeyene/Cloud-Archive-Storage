@@ -73,7 +73,7 @@ public class DocumentAccessService {
             return true;
         }
         if (access.has(ApplicationRole.MANAGER)) {
-            return classification != ClassificationLevel.SECRET || sameDepartment;
+            return sameDepartment;
         }
         if (access.has(ApplicationRole.DEPT_USER)) {
             return classification == ClassificationLevel.PUBLIC
