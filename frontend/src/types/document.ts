@@ -49,5 +49,7 @@ export interface UpdateDocumentInput {
   title?: string
   description?: string
   categoryId?: string
+  departmentId?: string
+  otherDepartmentName?: string
   classification?: ClassificationLevel
 }

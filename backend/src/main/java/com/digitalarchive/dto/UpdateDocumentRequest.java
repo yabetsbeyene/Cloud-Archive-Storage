@@ -14,5 +14,10 @@ public class UpdateDocumentRequest {
     @Size(max = 10000)
     private String description;
     private UUID categoryId;
+    private UUID departmentId;
+
+    @Size(max = 150)
+    private String otherDepartmentName;
+
     private ClassificationLevel classification;
 }

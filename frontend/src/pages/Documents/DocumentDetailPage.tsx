@@ -191,6 +191,8 @@ export function DocumentDetailPage() {
               <li key={event.workflowId} className="px-5 py-4">
                 <p className="text-sm font-medium text-slate-900">{event.fromStatus ? `${documentStatusLabels[event.fromStatus]} → ` : ''}{documentStatusLabels[event.toStatus]}</p>
                 {event.comment && <p className="mt-1 text-sm leading-5 text-slate-600">{event.comment}</p>}
+                {event.amendmentSections && <p className="mt-1 text-xs text-slate-500">Areas to amend: {event.amendmentSections}</p>}
+                {event.rejectionReason && event.rejectionReason !== event.comment && <p className="mt-1 text-xs text-rose-700">Rejection reason: {event.rejectionReason}</p>}
                 <p className="mt-2 text-xs text-slate-500">{formatDateTime(event.changedAt)}</p>
               </li>
             ))}

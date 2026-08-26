@@ -228,6 +228,27 @@ public class DocumentService {
                                 () -> new ResourceNotFoundException("Category not found: " + request.getCategoryId()));
                 existing.setCategory(category);
             }
+            if (request.getDepartmentId() != null || request.getOtherDepartmentName() != null) {
+                boolean other = request.getOtherDepartmentName() != null
+                        && !request.getOtherDepartmentName().isBlank();
+                if ((request.getDepartmentId() == null) == !other) {
+                    throw new IllegalArgumentException("Choose either a listed department or an other department name");
+                }
+                if (access.has(com.digitalarchive.domain.enums.ApplicationRole.DEPT_USER)
+                        && !access.hasAny(com.digitalarchive.domain.enums.ApplicationRole.ADMIN,
+                                com.digitalarchive.domain.enums.ApplicationRole.ARCHIVIST)
+                        && (request.getDepartmentId() == null || !request.getDepartmentId().equals(access.departmentId()))) {
+                    throw new org.springframework.security.access.AccessDeniedException(
+                            "Department users may only use their own department");
+                }
+                Department department = request.getDepartmentId() == null ? null
+                        : departmentRepository.findById(request.getDepartmentId())
+                                .filter(candidate -> candidate.getDeletedAt() == null)
+                                .orElseThrow(() -> new ResourceNotFoundException(
+                                        "Department not found: " + request.getDepartmentId()));
+                existing.setDepartment(department);
+                existing.setOtherDepartmentName(other ? request.getOtherDepartmentName().trim() : null);
+            }
             existing.setUpdatedBy(updatedByUserSub);
             Document saved = documentRepository.save(existing);
 

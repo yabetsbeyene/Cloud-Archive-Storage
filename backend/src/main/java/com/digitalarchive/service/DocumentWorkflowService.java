@@ -137,8 +137,10 @@ public class DocumentWorkflowService {
         document.setStatus(targetStatus);
         document.setUpdatedBy(actorId);
         if (targetStatus == DocumentStatus.REJECTED) {
-            document.setDeletedAt(OffsetDateTime.now());
-            document.setDeletedBy(actorId);
+            // Rejection returns the active record to its original uploader.
+            // Keep it visible to that owner so it can be corrected and resubmitted.
+            document.setDeletedAt(null);
+            document.setDeletedBy(null);
         }
         if (targetStatus == DocumentStatus.ARCHIVED) {
             document.setClassification(request.getClassification());

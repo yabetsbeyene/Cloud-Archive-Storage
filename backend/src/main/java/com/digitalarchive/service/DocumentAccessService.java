@@ -73,7 +73,9 @@ public class DocumentAccessService {
             return true;
         }
         if (access.has(ApplicationRole.MANAGER)) {
-            return sameDepartment;
+            return sameDepartment
+                    && document.getStatus() != com.digitalarchive.domain.enums.DocumentStatus.DRAFT
+                    && document.getStatus() != com.digitalarchive.domain.enums.DocumentStatus.REJECTED;
         }
         if (access.has(ApplicationRole.DEPT_USER)) {
             return classification == ClassificationLevel.PUBLIC
@@ -97,8 +99,11 @@ public class DocumentAccessService {
         boolean sameDepartment = access.departmentId() != null
                 && document.getDepartment() != null
                 && access.departmentId().equals(document.getDepartment().getDepartmentId());
+        boolean editableByOwner = owner
+                && (document.getStatus() == com.digitalarchive.domain.enums.DocumentStatus.DRAFT
+                        || document.getStatus() == com.digitalarchive.domain.enums.DocumentStatus.REJECTED);
         boolean allowed = access.hasAny(ApplicationRole.ADMIN, ApplicationRole.ARCHIVIST)
-                || (access.has(ApplicationRole.DEPT_USER) && (owner || sameDepartment));
+                || (access.has(ApplicationRole.DEPT_USER) && editableByOwner);
         if (!allowed) {
             throw new AccessDeniedException("You do not have permission to modify this document");
         }
