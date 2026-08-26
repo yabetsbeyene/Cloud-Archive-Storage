@@ -102,14 +102,7 @@ startup, so changing providers does not require deleting users or realm data.
 Use an app-specific SMTP password when your provider supports one, and never
 commit `.env`.
 
-## Roles
-
-- `ADMIN` — system administration and full document access
-- `ARCHIVIST` — archive and audit responsibilities
-- `MANAGER` — document review, approval, and rejection
-- `DEPT_USER` — department document creation and editing
-- `VIEWER` — read-only access
-
+ 
 Non-administrator documents are submitted for review automatically.
 Administrators can start review, managers can approve or reject, and
 administrators or archivists can archive approved documents.
