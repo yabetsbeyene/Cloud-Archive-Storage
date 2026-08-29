@@ -1,5 +1,6 @@
 import { useState } from 'react'
 import { useMutation, useQueryClient } from '@tanstack/react-query'
+import { useNavigate } from 'react-router-dom'
 import { Check, Inbox, PencilLine, RotateCcw, ShieldCheck, X } from 'lucide-react'
 import { workflowApi } from '@/api/workflow.api'
 import { getApiErrorMessage } from '@/api/error-message'
@@ -15,6 +16,7 @@ const classificationOptions: ClassificationLevel[] = ['PUBLIC', 'INTERNAL', 'CON
 
 export function DocumentWorkflowActions({ document, compact = false }: { document: Document; compact?: boolean }) {
   const { user, hasRole } = useAuth()
+  const navigate = useNavigate()
   const queryClient = useQueryClient()
   const [modal, setModal] = useState<'reject' | 'amend' | 'archive' | null>(null)
   const [comment, setComment] = useState('')
@@ -40,7 +42,8 @@ export function DocumentWorkflowActions({ document, compact = false }: { documen
   })
   const canDecide = hasRole('MANAGER')
   const canArchive = hasRole('ARCHIVIST')
-  const canStartEdit = document.createdBy === user?.sub && hasRole('DEPT_USER')
+  const canStartEdit = document.createdBy === user?.sub
+    && (hasRole('ADMIN') || hasRole('ARCHIVIST') || hasRole('DEPT_USER'))
   const buttonClass = compact ? 'min-h-9 px-3' : ''
   function submitModal(action: 'reject' | 'amend' | 'archive') {
     if (action === 'reject' && !comment.trim()) return setValidationError('A rejection reason is required.')
@@ -60,8 +63,8 @@ export function DocumentWorkflowActions({ document, compact = false }: { documen
         <Button className={buttonClass} variant="danger" onClick={() => setModal('reject')} disabled={mutation.isPending}><X size={16} aria-hidden="true" /> Reject</Button>
       </>}
       {document.status === 'APPROVED' && canArchive && <Button className={buttonClass} onClick={() => setModal('archive')} disabled={mutation.isPending}><ShieldCheck size={16} aria-hidden="true" /> Classify & archive</Button>}
-      {document.status === 'REJECTED' && canStartEdit && <Button className={buttonClass} onClick={() => mutation.mutate('begin-edit')} disabled={mutation.isPending}><RotateCcw size={16} aria-hidden="true" /> Start edits</Button>}
-      {document.status === 'DRAFT' && canStartEdit && <Button className={buttonClass} onClick={() => mutation.mutate('submit')} disabled={mutation.isPending}><Inbox size={16} aria-hidden="true" /> Submit for review</Button>}
+      {document.status === 'REJECTED' && canStartEdit && <Button className={buttonClass} onClick={() => mutation.mutate('begin-edit', { onSuccess: () => navigate(`/documents/${document.documentId}/edit`) })} disabled={mutation.isPending}><RotateCcw size={16} aria-hidden="true" /> Start edits</Button>}
+      {document.status === 'DRAFT' && canStartEdit && <Button className={buttonClass} onClick={() => navigate(`/documents/${document.documentId}/edit`)} disabled={mutation.isPending}><PencilLine size={16} aria-hidden="true" /> Edit and resubmit</Button>}
     </div>
     {mutation.isError && <p role="alert" className="mt-2 text-sm text-rose-700">{getApiErrorMessage(mutation.error, 'The workflow action could not be completed.')}</p>}
     <Modal isOpen={modal === 'reject'} onClose={closeModal} title="Reject document"><div className="space-y-4"><p className="text-sm leading-6 text-slate-600">This reason will be shown to the original uploader.</p><TextareaField label="Mandatory rejection reason" value={comment} onChange={e => { setComment(e.target.value); setValidationError('') }} error={validationError} rows={5} /><ModalActions onCancel={closeModal} onSubmit={() => submitModal('reject')} loading={mutation.isPending} label="Reject document" danger /></div></Modal>

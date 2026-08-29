@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react'
 import { useQuery } from '@tanstack/react-query'
-import { ArrowLeft, Download, Eye, FileText, History, RotateCw, UserRound } from 'lucide-react'
+import { ArrowLeft, Download, Eye, FileText, History, Pencil, RotateCw, UserRound } from 'lucide-react'
 import { Link, useParams } from 'react-router-dom'
 import { documentsApi } from '@/api/documents.api'
 import { versionsApi } from '@/api/versions.api'
@@ -13,6 +13,7 @@ import { ErrorMessage } from '@/components/ui/ErrorMessage'
 import { Modal } from '@/components/ui/Modal'
 import { formatDateTime, formatFileSize } from '@/utils/format'
 import { documentStatusLabels } from '@/utils/document-status'
+import { useAuth } from '@/features/auth/auth-context'
 
 interface PreviewState {
   versionId: string
@@ -23,6 +24,7 @@ interface PreviewState {
 
 export function DocumentDetailPage() {
   const { id = '' } = useParams()
+  const { user, hasRole } = useAuth()
   const [downloadError, setDownloadError] = useState('')
   const [preview, setPreview] = useState<PreviewState | null>(null)
   const [previewLoadingId, setPreviewLoadingId] = useState<string | null>(null)
@@ -63,6 +65,9 @@ export function DocumentDetailPage() {
   }
 
   const document = documentQuery.data
+  const canEditReturned = document.createdBy === user?.sub
+    && (hasRole('ADMIN') || hasRole('ARCHIVIST') || hasRole('DEPT_USER'))
+    && (document.status === 'DRAFT' || document.status === 'REJECTED')
 
   async function download(versionId: string, fileName: string) {
     try {
@@ -102,9 +107,25 @@ export function DocumentDetailPage() {
           <p className="mt-2 max-w-3xl text-sm leading-6 text-slate-600">{document.description || 'No description was provided.'}</p>
         </div>
         <div className="shrink-0">
+          {canEditReturned && (
+            <Link
+              to={`/documents/${id}/edit`}
+              className="mb-2 inline-flex min-h-10 items-center gap-2 rounded-lg bg-indigo-600 px-3 py-2 text-sm font-medium text-white shadow-sm hover:bg-indigo-700 focus-visible:outline-2 focus-visible:outline-indigo-500"
+            >
+              <Pencil size={16} aria-hidden="true" />
+              Edit record and file
+            </Link>
+          )}
           <DocumentWorkflowActions document={document} />
         </div>
       </header>
+
+      {canEditReturned && (
+        <div className="mt-5 rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm leading-6 text-amber-950">
+          This document is waiting for your amendments. You can change the record metadata, including
+          its category and department, and upload a corrected document file.
+        </div>
+      )}
 
       <div className="mt-6 grid gap-6 lg:grid-cols-[minmax(0,1.35fr)_minmax(20rem,0.65fr)]">
         <div className="space-y-6">

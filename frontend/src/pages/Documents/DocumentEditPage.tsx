@@ -48,7 +48,11 @@ export function DocumentEditPage() {
   const categoriesQuery = useQuery({ queryKey: ['categories'], queryFn: categoriesApi.list })
   const departmentsQuery = useQuery({ queryKey: ['departments'], queryFn: departmentsApi.list })
   const accountQuery = useQuery({ queryKey: ['account'], queryFn: accountApi.get, enabled: hasRole('DEPT_USER') })
+  const historyQuery = useQuery({ queryKey: ['workflow-history', id], queryFn: () => workflowApi.history(id), enabled: Boolean(id) })
   const document = documentQuery.data
+  const feedback = historyQuery.data?.find((event) =>
+    event.comment || event.amendmentComment || event.rejectionReason,
+  )
 
   const { register, handleSubmit, watch, formState: { errors } } = useForm<FormValues>({
     resolver: zodResolver(schema),
@@ -108,9 +112,22 @@ export function DocumentEditPage() {
         <ArrowLeft size={16} aria-hidden="true" /> Back to document
       </Link>
       <PageHeader title="Amend document" description="Correct every editable field, optionally upload a replacement version, and send it back for review." />
+      {feedback && (feedback.comment || feedback.amendmentComment || feedback.rejectionReason) && (
+        <section className="mt-5 rounded-xl border border-amber-200 bg-amber-50 p-4 text-amber-950">
+          <h2 className="font-semibold">Manager feedback</h2>
+          {feedback.comment && <p className="mt-1 text-sm leading-6">{feedback.comment}</p>}
+          {feedback.amendmentSections && <p className="mt-2 text-sm"><span className="font-medium">Areas to change:</span> {feedback.amendmentSections}</p>}
+          {feedback.amendmentComment && feedback.amendmentComment !== feedback.comment && <p className="mt-2 text-sm leading-6">{feedback.amendmentComment}</p>}
+          {feedback.rejectionReason && feedback.rejectionReason !== feedback.comment && <p className="mt-2 text-sm leading-6">{feedback.rejectionReason}</p>}
+        </section>
+      )}
       {saveMutation.isError && <div className="mt-5"><ErrorMessage message={getApiErrorMessage(saveMutation.error, 'The document could not be amended.')} /></div>}
       <form onSubmit={handleSubmit((values) => saveMutation.mutate(values))} className="mt-6 space-y-6">
         <section className="space-y-5 rounded-xl border border-slate-200 bg-white p-5 sm:p-6">
+          <div>
+            <h2 className="font-semibold text-slate-900">Record metadata</h2>
+            <p className="mt-1 text-sm text-slate-500">Update the information the manager asked you to correct.</p>
+          </div>
           <Input label="Document title" {...register('title')} error={errors.title?.message} />
           <TextareaField label="Description" rows={5} {...register('description')} error={errors.description?.message} />
           <div className="grid gap-5 sm:grid-cols-2">
@@ -128,8 +145,8 @@ export function DocumentEditPage() {
           </SelectField>}
         </section>
         <section className="rounded-xl border border-slate-200 bg-white p-5 sm:p-6">
-          <h2 className="font-semibold text-slate-900">Replacement file (optional)</h2>
-          <p className="mt-1 text-sm text-slate-500">Upload a corrected file to create the next version. The existing versions remain in history.</p>
+          <h2 className="font-semibold text-slate-900">Change document file (optional)</h2>
+          <p className="mt-1 text-sm text-slate-500">Upload the corrected document to create a new version. The existing versions remain in history.</p>
           <input className="mt-4 block w-full rounded-lg border border-slate-300 px-3 py-3 text-sm" type="file" onChange={(event) => chooseFile(event.target.files?.[0])} />
           {fileError && <p className="mt-2 text-sm text-rose-700">{fileError}</p>}
         </section>
