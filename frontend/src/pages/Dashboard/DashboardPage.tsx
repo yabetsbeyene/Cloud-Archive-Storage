@@ -95,9 +95,9 @@ function getMetrics(dashboard: Dashboard): Array<[string, number]> {
     case 'DEPT_USER':
       return [
         ['My documents', dashboard.totalDocuments],
+        ['Awaiting my action', status.DRAFT ?? 0],
         ['Submitted', status.SUBMITTED ?? 0],
         ['Under review', status.UNDER_REVIEW ?? 0],
-        ['Needs attention', status.REJECTED ?? 0],
       ]
     default:
       return []
@@ -209,9 +209,11 @@ export function DashboardPage() {
                     </p>
                   </div>
                   <span className="rounded-full bg-amber-50 px-2.5 py-1 text-xs font-medium text-amber-800">
-                    {(dashboard.documentsByStatus.SUBMITTED ?? 0) +
-                      (dashboard.documentsByStatus.UNDER_REVIEW ?? 0)}{' '}
-                    awaiting action
+                    {(dashboard.view === 'DEPT_USER'
+                      ? dashboard.documentsByStatus.DRAFT ?? 0
+                      : (dashboard.documentsByStatus.SUBMITTED ?? 0) +
+                        (dashboard.documentsByStatus.UNDER_REVIEW ?? 0))}{' '}
+                    {dashboard.view === 'DEPT_USER' ? 'awaiting your action' : 'awaiting action'}
                   </span>
                 </div>
 

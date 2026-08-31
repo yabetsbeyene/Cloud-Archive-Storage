@@ -15,6 +15,7 @@ import com.digitalarchive.repository.AppUserRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.security.oauth2.jwt.Jwt;
 
 import java.time.OffsetDateTime;
 import java.util.EnumMap;
@@ -28,7 +29,7 @@ import java.util.stream.Collectors;
 /**
  * The document state machine. Allowed transitions, per your original design:
  * DRAFT -> SUBMITTED -> UNDER_REVIEW -> APPROVED -> ARCHIVED
- * -> REJECTED -> DRAFT (resubmit)
+     * -> REJECTED (soft-deleted)
  */
 @Service
 @RequiredArgsConstructor
@@ -37,6 +38,7 @@ public class DocumentWorkflowService {
     private final DocumentRepository documentRepository;
     private final DocumentWorkflowHistoryRepository historyRepository;
     private final AppUserRepository appUserRepository;
+    private final DocumentAccessService documentAccessService;
     private final AuditService auditService;
     private final ApiResponseMapper responseMapper;
 
@@ -47,22 +49,24 @@ public class DocumentWorkflowService {
         ALLOWED_TRANSITIONS.put(DocumentStatus.SUBMITTED, EnumSet.of(DocumentStatus.UNDER_REVIEW));
         ALLOWED_TRANSITIONS.put(DocumentStatus.UNDER_REVIEW,
                 EnumSet.of(DocumentStatus.APPROVED, DocumentStatus.REJECTED, DocumentStatus.DRAFT));
-        ALLOWED_TRANSITIONS.put(DocumentStatus.REJECTED, EnumSet.of(DocumentStatus.DRAFT));
+        ALLOWED_TRANSITIONS.put(DocumentStatus.REJECTED, EnumSet.noneOf(DocumentStatus.class));
         ALLOWED_TRANSITIONS.put(DocumentStatus.APPROVED, EnumSet.of(DocumentStatus.ARCHIVED));
         ALLOWED_TRANSITIONS.put(DocumentStatus.ARCHIVED, EnumSet.noneOf(DocumentStatus.class));
     }
 
     @Transactional(readOnly = true)
-    public List<WorkflowHistoryResponse> history(UUID documentId) {
+    public List<WorkflowHistoryResponse> history(UUID documentId, Jwt jwt) {
         Document document = documentRepository.findById(documentId)
                 .orElseThrow(() -> new ResourceNotFoundException("Document not found: " + documentId));
+        documentAccessService.requireRead(document, documentAccessService.context(jwt));
         return historyRepository.findByDocument_DocumentIdOrderByChangedAtDesc(document.getDocumentId()).stream()
                 .map(responseMapper::toWorkflowHistoryResponse)
                 .toList();
     }
 
     @Transactional
-    public DocumentResponse transition(UUID documentId, DocumentStatus targetStatus, com.digitalarchive.dto.TransitionRequest request, UUID actorId) {
+    public DocumentResponse transition(UUID documentId, DocumentStatus targetStatus,
+            com.digitalarchive.dto.TransitionRequest request, UUID actorId, Jwt jwt) {
         Document document = documentRepository.findById(documentId)
                 .orElseThrow(() -> new ResourceNotFoundException("Document not found: " + documentId));
 
@@ -70,10 +74,12 @@ public class DocumentWorkflowService {
             throw new IllegalStateException("Cannot transition a deleted document");
         }
 
-        if (targetStatus == DocumentStatus.UNDER_REVIEW
+        DocumentAccessService.AccessContext access = documentAccessService.context(jwt);
+        if (!access.has(com.digitalarchive.domain.enums.ApplicationRole.ADMIN)
+                && (targetStatus == DocumentStatus.UNDER_REVIEW
                 || targetStatus == DocumentStatus.APPROVED
                 || targetStatus == DocumentStatus.REJECTED
-                || (targetStatus == DocumentStatus.DRAFT && document.getStatus() == DocumentStatus.UNDER_REVIEW)) {
+                || (targetStatus == DocumentStatus.DRAFT && document.getStatus() == DocumentStatus.UNDER_REVIEW))) {
             appUserRepository.findById(actorId)
                     .filter(user -> user.getDepartment() != null
                             && document.getDepartment() != null
@@ -104,11 +110,6 @@ public class DocumentWorkflowService {
                 throw new IllegalArgumentException("An amendment comment is required");
             }
         }
-        if (targetStatus == DocumentStatus.DRAFT && currentStatus == DocumentStatus.REJECTED
-                && !document.getCreatedBy().equals(actorId)) {
-            throw new org.springframework.security.access.AccessDeniedException(
-                    "Only the original uploader may start edits on a rejected document");
-        }
         if (targetStatus == DocumentStatus.SUBMITTED && currentStatus == DocumentStatus.DRAFT
                 && !document.getCreatedBy().equals(actorId)) {
             throw new org.springframework.security.access.AccessDeniedException(
@@ -137,10 +138,10 @@ public class DocumentWorkflowService {
         document.setStatus(targetStatus);
         document.setUpdatedBy(actorId);
         if (targetStatus == DocumentStatus.REJECTED) {
-            // Rejection returns the active record to its original uploader.
-            // Keep it visible to that owner so it can be corrected and resubmitted.
-            document.setDeletedAt(null);
-            document.setDeletedBy(null);
+            // Rejection is final. Keep the row and workflow history for audit,
+            // but hide the document from every normal view and block amendments.
+            document.setDeletedAt(OffsetDateTime.now());
+            document.setDeletedBy(actorId);
         }
         if (targetStatus == DocumentStatus.ARCHIVED) {
             document.setClassification(request.getClassification());

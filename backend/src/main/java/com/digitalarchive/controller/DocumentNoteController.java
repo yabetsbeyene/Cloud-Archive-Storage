@@ -24,8 +24,9 @@ public class DocumentNoteController {
     private final DocumentNoteService noteService;
 
     @GetMapping
-    public List<DocumentNoteResponse> list(@PathVariable UUID documentId) {
-        return noteService.list(documentId);
+    public List<DocumentNoteResponse> list(@PathVariable UUID documentId,
+            @AuthenticationPrincipal Jwt jwt) {
+        return noteService.list(documentId, jwt);
     }
 
     @PostMapping
@@ -34,7 +35,7 @@ public class DocumentNoteController {
             @PathVariable UUID documentId,
             @Valid @RequestBody DocumentNoteRequest request,
             @AuthenticationPrincipal Jwt jwt) {
-        DocumentNoteResponse created = noteService.create(documentId, request, actorId(jwt));
+        DocumentNoteResponse created = noteService.create(documentId, request, actorId(jwt), jwt);
         return ResponseEntity.status(HttpStatus.CREATED).body(created);
     }
 
@@ -45,7 +46,7 @@ public class DocumentNoteController {
             @PathVariable UUID noteId,
             @Valid @RequestBody DocumentNoteRequest request,
             @AuthenticationPrincipal Jwt jwt) {
-        return noteService.update(documentId, noteId, request, actorId(jwt), hasRealmRole(jwt, "ADMIN"))
+        return noteService.update(documentId, noteId, request, actorId(jwt), hasRealmRole(jwt, "ADMIN"), jwt)
                 .map(ResponseEntity::ok)
                 .orElseGet(() -> ResponseEntity.notFound().build());
     }
@@ -56,7 +57,7 @@ public class DocumentNoteController {
             @PathVariable UUID documentId,
             @PathVariable UUID noteId,
             @AuthenticationPrincipal Jwt jwt) {
-        return noteService.softDelete(documentId, noteId, actorId(jwt), hasRealmRole(jwt, "ADMIN"))
+        return noteService.softDelete(documentId, noteId, actorId(jwt), hasRealmRole(jwt, "ADMIN"), jwt)
                 ? ResponseEntity.noContent().build()
                 : ResponseEntity.notFound().build();
     }

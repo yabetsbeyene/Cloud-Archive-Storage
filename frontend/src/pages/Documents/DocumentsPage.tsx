@@ -53,7 +53,7 @@ interface DocumentsLocationState {
 export function DocumentsPage() {
   const queryClient = useQueryClient()
   const location = useLocation()
-  const { hasRole } = useAuth()
+  const { hasRole, user } = useAuth()
   const [query, setQuery] = useState('')
   const deferredQuery = useDeferredValue(query.trim().toLowerCase())
   const [status, setStatus] = useState<DocumentStatus | ''>('')
@@ -65,7 +65,7 @@ export function DocumentsPage() {
 
   const canCreate =
     hasRole('ADMIN') || hasRole('ARCHIVIST') || hasRole('DEPT_USER')
-  const canDelete = hasRole('ADMIN') || hasRole('ARCHIVIST')
+  const canDeleteAsAdmin = hasRole('ADMIN') || hasRole('ARCHIVIST')
   const createdTitle = (location.state as DocumentsLocationState | null)?.createdTitle
 
   const documentsQuery = useQuery({
@@ -365,7 +365,7 @@ export function DocumentsPage() {
                       <DocumentActions
                         document={document}
                         canEdit={canCreate}
-                        canDelete={canDelete}
+                        canDelete={canDeleteAsAdmin || (hasRole('DEPT_USER') && document.createdBy === user?.sub && document.status !== 'ARCHIVED')}
                         onDelete={() => setDeleting(document)}
                       />
                     </td>
@@ -415,7 +415,7 @@ export function DocumentsPage() {
                   <DocumentActions
                     document={document}
                     canEdit={canCreate}
-                    canDelete={canDelete}
+                    canDelete={canDeleteAsAdmin || (hasRole('DEPT_USER') && document.createdBy === user?.sub && document.status !== 'ARCHIVED')}
                     onDelete={() => setDeleting(document)}
                   />
                 </div>
@@ -478,7 +478,7 @@ function DocumentActions({
   canDelete: boolean
   onDelete: () => void
 }) {
-  const isEditable = document.status === 'DRAFT' || document.status === 'REJECTED'
+  const isEditable = document.status === 'DRAFT'
 
   return (
     <div className="flex items-center justify-end gap-1">

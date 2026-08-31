@@ -24,8 +24,9 @@ public class DocumentWorkflowController {
         private final DocumentWorkflowService workflowService;
 
         @GetMapping("/history")
-        public List<WorkflowHistoryResponse> history(@PathVariable UUID documentId) {
-                return workflowService.history(documentId);
+        public List<WorkflowHistoryResponse> history(@PathVariable UUID documentId,
+                        @AuthenticationPrincipal Jwt jwt) {
+                return workflowService.history(documentId, jwt);
         }
 
         @PostMapping("/submit")
@@ -33,39 +34,39 @@ public class DocumentWorkflowController {
         public DocumentResponse submit(@PathVariable UUID documentId,
                         @Valid @RequestBody(required = false) TransitionRequest request,
                         @AuthenticationPrincipal Jwt jwt) {
-                return workflowService.transition(documentId, DocumentStatus.SUBMITTED, request, UUID.fromString(jwt.getSubject()));
+                return workflowService.transition(documentId, DocumentStatus.SUBMITTED, request, UUID.fromString(jwt.getSubject()), jwt);
         }
 
         @PostMapping("/start-review")
-        @PreAuthorize("hasRole('MANAGER')")
+        @PreAuthorize("hasAnyRole('MANAGER', 'ADMIN')")
         public DocumentResponse startReview(@PathVariable UUID documentId,
                         @Valid @RequestBody(required = false) TransitionRequest request,
                         @AuthenticationPrincipal Jwt jwt) {
-                return workflowService.transition(documentId, DocumentStatus.UNDER_REVIEW, request, UUID.fromString(jwt.getSubject()));
+                return workflowService.transition(documentId, DocumentStatus.UNDER_REVIEW, request, UUID.fromString(jwt.getSubject()), jwt);
         }
 
         @PostMapping("/approve")
-        @PreAuthorize("hasRole('MANAGER')")
+        @PreAuthorize("hasAnyRole('MANAGER', 'ADMIN')")
         public DocumentResponse approve(@PathVariable UUID documentId,
                         @Valid @RequestBody(required = false) TransitionRequest request,
                         @AuthenticationPrincipal Jwt jwt) {
-                return workflowService.transition(documentId, DocumentStatus.APPROVED, request, UUID.fromString(jwt.getSubject()));
+                return workflowService.transition(documentId, DocumentStatus.APPROVED, request, UUID.fromString(jwt.getSubject()), jwt);
         }
 
         @PostMapping("/reject")
-        @PreAuthorize("hasRole('MANAGER')")
+        @PreAuthorize("hasAnyRole('MANAGER', 'ADMIN')")
         public DocumentResponse reject(@PathVariable UUID documentId, @Valid @RequestBody TransitionRequest request,
                         @AuthenticationPrincipal Jwt jwt) {
                 return workflowService.transition(documentId, DocumentStatus.REJECTED,
-                                request, UUID.fromString(jwt.getSubject()));
+                                request, UUID.fromString(jwt.getSubject()), jwt);
         }
 
         @PostMapping("/amend")
-        @PreAuthorize("hasRole('MANAGER')")
+        @PreAuthorize("hasAnyRole('MANAGER', 'ADMIN')")
         public DocumentResponse amend(@PathVariable UUID documentId, @Valid @RequestBody TransitionRequest request,
                         @AuthenticationPrincipal Jwt jwt) {
                 return workflowService.transition(documentId, DocumentStatus.DRAFT, request,
-                                UUID.fromString(jwt.getSubject()));
+                                UUID.fromString(jwt.getSubject()), jwt);
         }
 
         @PostMapping("/begin-edit")
@@ -73,7 +74,7 @@ public class DocumentWorkflowController {
         public DocumentResponse beginEdit(@PathVariable UUID documentId,
                         @AuthenticationPrincipal Jwt jwt) {
                 return workflowService.transition(documentId, DocumentStatus.DRAFT, null,
-                                UUID.fromString(jwt.getSubject()));
+                                UUID.fromString(jwt.getSubject()), jwt);
         }
 
         @PostMapping("/archive")
@@ -81,6 +82,6 @@ public class DocumentWorkflowController {
         public DocumentResponse archive(@PathVariable UUID documentId,
                         @Valid @RequestBody(required = false) TransitionRequest request,
                         @AuthenticationPrincipal Jwt jwt) {
-                return workflowService.transition(documentId, DocumentStatus.ARCHIVED, request, UUID.fromString(jwt.getSubject()));
+                return workflowService.transition(documentId, DocumentStatus.ARCHIVED, request, UUID.fromString(jwt.getSubject()), jwt);
         }
 }

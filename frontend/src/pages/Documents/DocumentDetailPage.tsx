@@ -67,7 +67,7 @@ export function DocumentDetailPage() {
   const document = documentQuery.data
   const canEditReturned = document.createdBy === user?.sub
     && (hasRole('ADMIN') || hasRole('ARCHIVIST') || hasRole('DEPT_USER'))
-    && (document.status === 'DRAFT' || document.status === 'REJECTED')
+    && document.status === 'DRAFT'
 
   async function download(versionId: string, fileName: string) {
     try {

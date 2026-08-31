@@ -100,12 +100,24 @@ public class DocumentAccessService {
                 && document.getDepartment() != null
                 && access.departmentId().equals(document.getDepartment().getDepartmentId());
         boolean editableByOwner = owner
-                && (document.getStatus() == com.digitalarchive.domain.enums.DocumentStatus.DRAFT
-                        || document.getStatus() == com.digitalarchive.domain.enums.DocumentStatus.REJECTED);
+                && document.getStatus() == com.digitalarchive.domain.enums.DocumentStatus.DRAFT;
         boolean allowed = access.hasAny(ApplicationRole.ADMIN, ApplicationRole.ARCHIVIST)
                 || (access.has(ApplicationRole.DEPT_USER) && editableByOwner);
         if (!allowed) {
             throw new AccessDeniedException("You do not have permission to modify this document");
+        }
+    }
+
+    public void requireDelete(Document document, AccessContext access) {
+        boolean owner = document.getCreatedBy().equals(access.userId());
+        boolean uploaderCanDelete = access.has(ApplicationRole.DEPT_USER)
+                && owner
+                && document.getStatus() != com.digitalarchive.domain.enums.DocumentStatus.ARCHIVED;
+        boolean allowed = access.hasAny(ApplicationRole.ADMIN, ApplicationRole.ARCHIVIST)
+                || uploaderCanDelete;
+        if (!allowed) {
+            throw new AccessDeniedException(
+                    "You can only delete your own document before it is archived");
         }
     }
 

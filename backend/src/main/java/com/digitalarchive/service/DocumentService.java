@@ -266,17 +266,20 @@ public class DocumentService {
      * normal views".
      */
     @Transactional
-    public boolean softDelete(UUID id, UUID deletedByUserSub) {
-        return findActiveEntity(id).map(existing -> {
-            existing.setDeletedAt(OffsetDateTime.now());
-            existing.setDeletedBy(deletedByUserSub);
-            documentRepository.save(existing);
+    public boolean softDelete(UUID id, UUID deletedByUserSub, Jwt jwt) {
+        Document existing = findActiveEntity(id).orElse(null);
+        if (existing == null) {
+            return false;
+        }
+        documentAccessService.requireDelete(existing, documentAccessService.context(jwt));
+        existing.setDeletedAt(OffsetDateTime.now());
+        existing.setDeletedBy(deletedByUserSub);
+        documentRepository.save(existing);
 
-            auditService.log(deletedByUserSub, AuditAction.DELETE, ResourceType.DOCUMENT,
-                    existing.getDocumentId(), "Soft-deleted document: " + existing.getTitle());
+        auditService.log(deletedByUserSub, AuditAction.DELETE, ResourceType.DOCUMENT,
+                existing.getDocumentId(), "Soft-deleted document: " + existing.getTitle());
 
-            return true;
-        }).orElse(false);
+        return true;
     }
 
     private Optional<Document> findActiveEntity(UUID id) {

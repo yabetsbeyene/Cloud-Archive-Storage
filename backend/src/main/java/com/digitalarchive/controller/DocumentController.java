@@ -83,11 +83,11 @@ public class DocumentController {
     }
 
     @DeleteMapping("/{id}")
-    @PreAuthorize("hasAnyRole('ADMIN', 'ARCHIVIST')")
+    @PreAuthorize("hasAnyRole('ADMIN', 'ARCHIVIST', 'DEPT_USER')")
     public ResponseEntity<Void> delete(
             @PathVariable UUID id,
             @AuthenticationPrincipal Jwt jwt) {
-        if (!documentService.softDelete(id, actorId(jwt))) {
+        if (!documentService.softDelete(id, actorId(jwt), jwt)) {
             return ResponseEntity.notFound().build();
         }
         return ResponseEntity.noContent().build();

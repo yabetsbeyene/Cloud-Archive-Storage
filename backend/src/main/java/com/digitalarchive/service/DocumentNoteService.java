@@ -12,6 +12,7 @@ import com.digitalarchive.repository.DocumentRepository;
 import jakarta.persistence.EntityManager;
 import lombok.RequiredArgsConstructor;
 import org.springframework.security.access.AccessDeniedException;
+import org.springframework.security.oauth2.jwt.Jwt;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -29,17 +30,20 @@ public class DocumentNoteService {
     private final DocumentRepository documentRepository;
     private final ApiResponseMapper responseMapper;
     private final EntityManager entityManager;
+    private final DocumentAccessService documentAccessService;
 
-    public List<DocumentNoteResponse> list(UUID documentId) {
-        requireActiveDocument(documentId);
+    public List<DocumentNoteResponse> list(UUID documentId, Jwt jwt) {
+        Document document = requireActiveDocument(documentId);
+        documentAccessService.requireRead(document, documentAccessService.context(jwt));
         return noteRepository.findByDocument_DocumentIdAndDeletedAtIsNullOrderByCreatedAtDesc(documentId).stream()
                 .map(responseMapper::toNoteResponse)
                 .toList();
     }
 
     @Transactional
-    public DocumentNoteResponse create(UUID documentId, DocumentNoteRequest request, UUID actorId) {
+    public DocumentNoteResponse create(UUID documentId, DocumentNoteRequest request, UUID actorId, Jwt jwt) {
         Document document = requireActiveDocument(documentId);
+        documentAccessService.requireRead(document, documentAccessService.context(jwt));
         DocumentNote note = DocumentNote.builder()
                 .document(document)
                 .noteType(request.noteType() == null ? NoteType.GENERAL : request.noteType())
@@ -58,8 +62,10 @@ public class DocumentNoteService {
             UUID noteId,
             DocumentNoteRequest request,
             UUID actorId,
-            boolean administrator) {
-        requireActiveDocument(documentId);
+            boolean administrator,
+            Jwt jwt) {
+        Document document = requireActiveDocument(documentId);
+        documentAccessService.requireRead(document, documentAccessService.context(jwt));
         return findActiveNote(documentId, noteId).map(existing -> {
             requireOwnerOrAdministrator(existing, actorId, administrator);
             if (request.noteType() != null) {
@@ -74,8 +80,9 @@ public class DocumentNoteService {
     }
 
     @Transactional
-    public boolean softDelete(UUID documentId, UUID noteId, UUID actorId, boolean administrator) {
-        requireActiveDocument(documentId);
+    public boolean softDelete(UUID documentId, UUID noteId, UUID actorId, boolean administrator, Jwt jwt) {
+        Document document = requireActiveDocument(documentId);
+        documentAccessService.requireRead(document, documentAccessService.context(jwt));
         return findActiveNote(documentId, noteId).map(existing -> {
             requireOwnerOrAdministrator(existing, actorId, administrator);
             existing.setDeletedAt(OffsetDateTime.now());

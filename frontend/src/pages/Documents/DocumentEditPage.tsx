@@ -68,7 +68,6 @@ export function DocumentEditPage() {
 
   const saveMutation = useMutation({
     mutationFn: async (values: FormValues) => {
-      if (document?.status === 'REJECTED') await workflowApi.beginEdit(id)
       const updated = await documentsApi.update(id, {
         title: values.title.trim(),
         description: values.description,

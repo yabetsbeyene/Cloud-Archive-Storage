@@ -1,7 +1,7 @@
 import { useState } from 'react'
 import { useMutation, useQueryClient } from '@tanstack/react-query'
 import { useNavigate } from 'react-router-dom'
-import { Check, Inbox, PencilLine, RotateCcw, ShieldCheck, X } from 'lucide-react'
+import { Check, Inbox, PencilLine, ShieldCheck, X } from 'lucide-react'
 import { workflowApi } from '@/api/workflow.api'
 import { getApiErrorMessage } from '@/api/error-message'
 import { useAuth } from '@/features/auth/auth-context'
@@ -25,22 +25,32 @@ export function DocumentWorkflowActions({ document, compact = false }: { documen
   const [classification, setClassification] = useState<ClassificationLevel | ''>('')
   const [validationError, setValidationError] = useState('')
   const mutation = useMutation({
-    mutationFn: async (action: 'start' | 'submit' | 'approve' | 'reject' | 'amend' | 'archive' | 'begin-edit') => {
+    mutationFn: async (action: 'start' | 'submit' | 'approve' | 'reject' | 'amend' | 'archive') => {
       if (action === 'start') return workflowApi.startReview(document.documentId)
       if (action === 'submit') return workflowApi.submit(document.documentId)
       if (action === 'approve') return workflowApi.approve(document.documentId)
       if (action === 'reject') return workflowApi.reject(document.documentId, { comment })
       if (action === 'amend') return workflowApi.amend(document.documentId, { amendmentSections: sections.includes('other') && otherSection.trim() ? [...sections.filter(section => section !== 'other'), otherSection.trim()] : sections, amendmentComment: comment })
       if (action === 'archive') return workflowApi.archive(document.documentId, { classification: classification as ClassificationLevel })
-      return workflowApi.beginEdit(document.documentId)
+      return workflowApi.submit(document.documentId)
     },
-    onSuccess: async () => {
+    onSuccess: async (_result, action) => {
+      if (action === 'reject' || action === 'amend') {
+        navigate('/documents/review-queue', {
+          replace: true,
+          state: {
+            workflowMessage: action === 'amend'
+              ? 'You successfully amended the document.'
+              : 'You successfully rejected the document.',
+          },
+        })
+      }
       await Promise.all(['documents', 'review-queue', 'dashboard'].map(queryKey => queryClient.invalidateQueries({ queryKey: [queryKey] })))
       await queryClient.invalidateQueries({ queryKey: ['document', document.documentId] })
       setModal(null); setComment(''); setSections([]); setOtherSection(''); setClassification(''); setValidationError('')
     },
   })
-  const canDecide = hasRole('MANAGER')
+  const canDecide = hasRole('MANAGER') || hasRole('ADMIN')
   const canArchive = hasRole('ARCHIVIST')
   const canStartEdit = document.createdBy === user?.sub
     && (hasRole('ADMIN') || hasRole('ARCHIVIST') || hasRole('DEPT_USER'))
@@ -63,7 +73,6 @@ export function DocumentWorkflowActions({ document, compact = false }: { documen
         <Button className={buttonClass} variant="danger" onClick={() => setModal('reject')} disabled={mutation.isPending}><X size={16} aria-hidden="true" /> Reject</Button>
       </>}
       {document.status === 'APPROVED' && canArchive && <Button className={buttonClass} onClick={() => setModal('archive')} disabled={mutation.isPending}><ShieldCheck size={16} aria-hidden="true" /> Classify & archive</Button>}
-      {document.status === 'REJECTED' && canStartEdit && <Button className={buttonClass} onClick={() => mutation.mutate('begin-edit', { onSuccess: () => navigate(`/documents/${document.documentId}/edit`) })} disabled={mutation.isPending}><RotateCcw size={16} aria-hidden="true" /> Start edits</Button>}
       {document.status === 'DRAFT' && canStartEdit && <Button className={buttonClass} onClick={() => navigate(`/documents/${document.documentId}/edit`)} disabled={mutation.isPending}><PencilLine size={16} aria-hidden="true" /> Edit and resubmit</Button>}
     </div>
     {mutation.isError && <p role="alert" className="mt-2 text-sm text-rose-700">{getApiErrorMessage(mutation.error, 'The workflow action could not be completed.')}</p>}
